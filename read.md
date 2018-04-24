@@ -4,6 +4,8 @@
 
 Features of CubeChain 
  
+
+
 1. Cubing 
 
 Cubing refers to a technology for making a cube by combines 27 blocks into a cube. 
@@ -12,6 +14,7 @@ The special blocks are basically composed of three blocks but the number of data
 As the data block is generated, the cubing is performed and the generated cube creates another hash value. 
 Since the hash value of the block and the hash value of the cube are generated due to the cube, a data system which can be doubly verified can be constructed. 
  
+
 2. Indexing Block 
 
 Indexing block is a block indexing whole data concisely and intensifies its search function. 
@@ -19,6 +22,7 @@ It is a data block that summarizes an E-Wallet of whole transactions by addresse
 Thus, an indexing block makes it even faster to find specific data from an EWallet. 
 Now it is implemented at a high speed when providing a list output history of electronic wallet or API. 
  
+
 3. Statistics Block 
 
 It is a block that organizes statistical values of whole blocks and expedites the system. 
@@ -27,6 +31,7 @@ However, if the data of the POS is collected in the statistics block, the search
 It will be very efficient to search data if you collect frequently used data such as a list of top 1,000 of E-Wallets or a list of E-Wallets with more than 100 times of transfers. 
 Consequently, the API of the corresponding application service can be implemented at a high speed. 
  
+
 4. Escrow Block 
 
 An Escrow Block records double approvals data. 
@@ -35,6 +40,7 @@ In addition to an escrow account whose money is held by the third party, it has 
 It is an escrow function based on a blockchain. 
 Therefore, it can build secure trading system not only for online shopping malls and open markets but also for direct transactions between individuals. 
 The double approvals method can be implemented in many ways such as sender approval method, recipient approval method, both sides approval, automatic approval method after a specific period, and so on. Escrow blocks can be used by the owner to protect data through passwords, which means only users who know the password through encryption can view the data, rather than using the data in an open format. 
+
 
 5. POH (Proof of POW+POS hybrid) 
 
