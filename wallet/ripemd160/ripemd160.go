@@ -1,13 +1,4 @@
-// Copyright 2010 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// Package ripemd160 implements the RIPEMD-160 hash algorithm.
-package ripemd160 // import "golang.org/x/crypto/ripemd160"
-
-// RIPEMD-160 is designed by by Hans Dobbertin, Antoon Bosselaers, and Bart
-// Preneel with specifications available at:
-// http://homes.esat.kuleuven.be/~cosicart/pdf/AB-9601/AB-9601.pdf.
+package ripemd160
 
 import (
 	"crypto"
@@ -18,10 +9,7 @@ func init() {
 	crypto.RegisterHash(crypto.RIPEMD160, New)
 }
 
-// The size of the checksum in bytes.
 const Size = 20
-
-// The block size of the hash algorithm in bytes.
 const BlockSize = 64
 
 const (
@@ -32,7 +20,6 @@ const (
 	_s4 = 0xc3d2e1f0
 )
 
-// digest represents the partial evaluation of a checksum.
 type digest struct {
 	s  [5]uint32       // running context
 	x  [BlockSize]byte // temporary buffer
@@ -46,7 +33,6 @@ func (d *digest) Reset() {
 	d.tc = 0
 }
 
-// New returns a new hash.Hash computing the checksum.
 func New() hash.Hash {
 	result := new(digest)
 	result.Reset()
@@ -84,10 +70,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 }
 
 func (d0 *digest) Sum(in []byte) []byte {
-	// Make a copy of d0 so that caller can keep writing and summing.
 	d := *d0
-
-	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
 	tc := d.tc
 	var tmp [64]byte
 	tmp[0] = 0x80
@@ -96,18 +79,14 @@ func (d0 *digest) Sum(in []byte) []byte {
 	} else {
 		d.Write(tmp[0 : 64+56-tc%64])
 	}
-
-	// Length in bits.
 	tc <<= 3
 	for i := uint(0); i < 8; i++ {
 		tmp[i] = byte(tc >> (8 * i))
 	}
 	d.Write(tmp[0:8])
-
 	if d.nx != 0 {
 		panic("d.nx != 0")
 	}
-
 	var digest [Size]byte
 	for i, s := range d.s {
 		digest[i*4] = byte(s)
@@ -115,6 +94,5 @@ func (d0 *digest) Sum(in []byte) []byte {
 		digest[i*4+2] = byte(s >> 16)
 		digest[i*4+3] = byte(s >> 24)
 	}
-
 	return append(in, digest[:]...)
 }

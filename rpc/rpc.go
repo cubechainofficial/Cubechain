@@ -93,7 +93,6 @@ func apiCommand(command string,vars []string) ([]string,bool) {
 	var Peer PeerConf
 	var Pow PowConf
 	var Base BaseConf
-
 	var result []string
 	result_only:=false
 	for _,v:= range vars {

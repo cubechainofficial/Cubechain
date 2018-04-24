@@ -1,5 +1,7 @@
 # CubeChain
 
+27 blocks into a cube, the new blockchain platform
+
 Features of CubeChain 
  
 1. Cubing 

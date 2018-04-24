@@ -10,7 +10,6 @@ import (
     "os"
 )
 
-
 func Err(err error, exit int) int {
 	if err != nil {
 		fmt.Println(err)	
@@ -21,7 +20,6 @@ func Err(err error, exit int) int {
 	}
 	return 0
 }
-
 
 func StrToByte(str string) []byte {
 	sb := make([]byte, len(str))
@@ -71,7 +69,6 @@ func StripByte(d []byte, b byte) []byte {
 			return d[i:]
 		}
 	}
-
 	return nil
 }
 
@@ -103,7 +100,6 @@ func Timeout(i time.Duration) chan bool {
 	}()
 	return t
 }
-
 
 func CallRpc(com string) string {
 	return fmt.Sprintf("%x", com)

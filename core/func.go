@@ -113,7 +113,6 @@ func blockName(find string) string {
 				result=fi.Name()
 				return result
 			}
-			//fmt.Println(fi.Name(), fi.Size(), "bytes", fstr ," ", find)
         }
     }
 	return result
@@ -141,7 +140,6 @@ func blockFinder(find string) bool {
 				result=true
 				return result
 			}
-			//fmt.Println(fi.Name(), fi.Size(), "bytes", fstr ," ", find)
         }
     }
 	return result

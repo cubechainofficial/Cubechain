@@ -7,14 +7,11 @@ import (
 )
 
 type Configuration struct {
-    /* Network/Node/RPC */
 	Network string `json:"network"`
     Nettype string `json:"nettype"`
     Chaintype string `json:"chaintype"`
 	Host string `json:"host"`
     Port int `json:"port"`
-
-	/* Cube Setting */
 	Blocktime int `json:"blocktime"`
     Number []int `json:"number"`
     Pow []int `json:"pow"`
@@ -23,13 +20,8 @@ type Configuration struct {
     Escrow int `json:"escrow"`
     Format int `json:"format"`
     Edit int `json:"edit"`
-
-
-	/* Wallet */
 	Keylen  int `json:"keylen"`
-	
-	/* Password */
-	Password int `json:"password"`
+	Password []int `json:"password"`
 }
 
 func LoadConfiguration(File string) Configuration {

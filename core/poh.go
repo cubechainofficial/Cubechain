@@ -8,7 +8,6 @@ import (
 
 var Pratio=Pohr{50,30,20,30}
 
-
 func (p POH) PowCubeHash(b Block,addr string) string {
 	p=POH{b.Index,b.Cubeno,b.Hash,1,addr,Pratio.CHash,0}
 	var str string

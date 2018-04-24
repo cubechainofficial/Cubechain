@@ -1,13 +1,11 @@
 package core
 
 import (
-	//"strconv"
 	"../lib"
 	"../config"
 )
 
 var Configure config.Configuration
-
 
 func addIndexing() Block {
 	c:=CurrentHeight()-1
