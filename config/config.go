@@ -57,8 +57,8 @@ func (c Configuration) vaildConfiguration() bool {
         fmt.Println("[Configuration Error] Please confirm network infomation in configuration file.")
 		return false
 	}
-	if c.Blocktime<30 {
-        fmt.Println("[Configuration Error] Please confirm blocktime in configuration file. (Blocktime must over 30.)")
+	if c.Blocktime<10 {
+        fmt.Println("[Configuration Error] Please confirm blocktime in configuration file. (Blocktime must over 10.)")
 		return false
 	}
 	if (c.Indexing<0 || c.Statistics<0 || c.Escrow<0 || c.Format<0  || c.Edit<0) || (c.Indexing>27 || c.Statistics>27 || c.Escrow>27 || c.Format>27  || c.Edit>27) {
