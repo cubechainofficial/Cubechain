@@ -7,11 +7,15 @@ import (
 )
 
 type Configuration struct {
+    /* Network/Node/RPC */
+	Mainserver string `json:"mainserver"`
 	Network string `json:"network"`
     Nettype string `json:"nettype"`
     Chaintype string `json:"chaintype"`
 	Host string `json:"host"`
     Port int `json:"port"`
+
+	/* Cube Setting */
 	Blocktime int `json:"blocktime"`
     Number []int `json:"number"`
     Pow []int `json:"pow"`
@@ -20,8 +24,12 @@ type Configuration struct {
     Escrow int `json:"escrow"`
     Format int `json:"format"`
     Edit int `json:"edit"`
+
+	/* Wallet */
 	Keylen  int `json:"keylen"`
-	Password []int `json:"password"`
+	
+	/* Password */
+	Password int `json:"password"`
 }
 
 func LoadConfiguration(File string) Configuration {
@@ -57,8 +65,8 @@ func (c Configuration) vaildConfiguration() bool {
         fmt.Println("[Configuration Error] Please confirm network infomation in configuration file.")
 		return false
 	}
-	if c.Blocktime<30 {
-        fmt.Println("[Configuration Error] Please confirm blocktime in configuration file. (Blocktime must over 30.)")
+	if c.Blocktime<10 {
+        fmt.Println("[Configuration Error] Please confirm blocktime in configuration file. (Blocktime must over 10.)")
 		return false
 	}
 	if (c.Indexing<0 || c.Statistics<0 || c.Escrow<0 || c.Format<0  || c.Edit<0) || (c.Indexing>27 || c.Statistics>27 || c.Escrow>27 || c.Format>27  || c.Edit>27) {
@@ -67,4 +75,3 @@ func (c Configuration) vaildConfiguration() bool {
 	}
 	return true
 }
-

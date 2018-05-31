@@ -103,3 +103,10 @@ type PosWallet struct {
 	Address		string
 	Amount		int
 }
+
+type NodeAddr struct {
+	Ip			string
+	Port		string
+	cno			string
+}
+
