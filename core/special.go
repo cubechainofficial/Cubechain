@@ -1,11 +1,13 @@
 package core
 
 import (
+	"strconv"
 	"../lib"
 	"../config"
 )
 
 var Configure config.Configuration
+
 
 func addIndexing() Block {
 	c:=CurrentHeight()-1
@@ -19,7 +21,7 @@ func addIndexing() Block {
 	CArr=append(CArr,CI)
 
 	for i:=0;i<27;i++ {
-		err:=blockRead(c,i,iBlock[i])
+		err:=BlockRead(c,i,iBlock[i])
 		lib.Err(err,0)	
 		if i==Configure.Statistics || i==Configure.Escrow || i==Configure.Format || i==Configure.Edit {
 		} else if i==Configure.Indexing {
@@ -47,6 +49,32 @@ func addIndexing() Block {
 	return addBlock(Serialize(pAdd),c)
 }
 
+func CubeIndexToStr(ci CubeIndex) string {
+	result:=strconv.Itoa(ci.Index)
+	NumStr:=""
+	if ci.CubeNum==27 {
+		NumStr="A"
+	} else if ci.CubeNum>=1 && ci.CubeNum<=26 {
+		NumStr=string(ci.CubeNum+96)
+	}
+	result=result+NumStr
+	return result
+}
+
+func StrToCubeIndex(str string) CubeIndex {
+	idx,cno:=str[:len(str)-1],str[len(str)-1]
+	index,_:=strconv.Atoi(idx)
+	cbn:=0
+	if string(cno)=="A" {
+		cbn=27
+	} else {
+		cbn=int(cno)-96
+	}
+	result:=CubeIndex{index,cbn}
+	return result
+}
+
+
 func addStatistic() Block {
 	c:=CurrentHeight()-1
 	cnum:=Configure.Statistics;
@@ -58,7 +86,7 @@ func addStatistic() Block {
 	var Txd TransactionData
 
 	for i:=0;i<27;i++ {
-		err:=blockRead(c,i,iBlock[i])
+		err:=BlockRead(c,i,iBlock[i])
 		lib.Err(err,0)	
 		if i==Configure.Indexing || i==Configure.Escrow || i==Configure.Format || i==Configure.Edit {
 		} else if i==cnum {
@@ -97,7 +125,7 @@ func addEscrow() Block {
 	var iBlock Block
 	var pAdd EBlock
 
-	err:=blockRead(c,cnum,iBlock)
+	err:=BlockRead(c,cnum,iBlock)
 	lib.Err(err,0)	
 	pAdd=EscrowDeserialize(iBlock.Data)
 	

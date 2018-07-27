@@ -1,9 +1,28 @@
 package core
 
+type Cubechain struct {
+	Verify		int
+	Chain		[]CChain
+}
+
+type CChain struct {
+	Index		int
+	Timestamp	int
+	Chash       string
+}
+
 type CubeBlock struct {
 	Index		int
 	Timestamp	int
 	Cube		[27]Block
+	Chash       string
+}
+
+type Cubing struct {
+	Index		int
+	Timestamp	int
+	Hash1		[27]string
+	Hash2		[27]string
 	Chash       string
 }
 
@@ -23,6 +42,7 @@ type TransactionData struct {
 	From		[]byte
 	To			[]byte
 	Amount		int
+	Fee			int
 	Hash		[]byte
 	Sign		[]byte
 	Nonce		int

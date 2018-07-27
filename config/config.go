@@ -7,7 +7,7 @@ import (
 )
 
 type Configuration struct {
-    /* Network/Node/RPC */
+    /* Network/Node */
 	Mainserver string `json:"mainserver"`
 	Network string `json:"network"`
     Nettype string `json:"nettype"`
@@ -15,17 +15,29 @@ type Configuration struct {
 	Host string `json:"host"`
     Port int `json:"port"`
 
+	// RPC Port
+    Rpcip string `json:"rpcip"`
+    Rpcport int `json:"rpcport"`
+    Httpport int `json:"httpport"`
+	
 	/* Cube Setting */
+	Datafolder	string `json:"datafolder"`
+	Datanumber	int `json:"datanumber"`
+	
 	Blocktime int `json:"blocktime"`
     Number []int `json:"number"`
     Pow []int `json:"pow"`
-    Indexing int `json:"indexing"`
+    Maxnonce int `json:"maxnonce"`
+    Zeronumber int `json:"zeronumber"`
+
+	Indexing int `json:"indexing"`
     Statistics int `json:"statistics"`
     Escrow int `json:"escrow"`
     Format int `json:"format"`
     Edit int `json:"edit"`
 
 	/* Wallet */
+    Address string `json:"address"`
 	Keylen  int `json:"keylen"`
 	
 	/* Password */
@@ -34,16 +46,19 @@ type Configuration struct {
 
 func LoadConfiguration(File string) Configuration {
     var Config Configuration
-    configFile, err := os.Open(File)
+    configFile, err:=os.Open(File)
     defer configFile.Close()
     if err != nil {
         fmt.Println(err.Error())
     }
-    jsonParser := json.NewDecoder(configFile)
+    jsonParser:=json.NewDecoder(configFile)
     jsonParser.Decode(&Config)
 
 	if Config.Network=="mainnet" {
-		Config.Blocktime=180
+		Config.Datanumber=10000
+		Config.Maxnonce=1000000
+		Config.Zeronumber=4
+		Config.Blocktime=30
  		Config.Number=[]int{1,2000,10000,30000,40000,50000}
  		Config.Pow=[]int{7,6,5,4,3,2,1}
  		Config.Indexing=14

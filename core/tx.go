@@ -77,6 +77,16 @@ func TxDeserialize(data []byte) TransactionData {
 	return transaction
 }
 
+func DataDeserialize(data []byte) Block {
+	var idata Block
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+	err := decoder.Decode(&idata)
+	if err != nil {
+		log.Panic(err)
+	}
+	return idata
+}
+
 func IndexDeserialize(data []byte) IBlock {
 	var idata IBlock
 	decoder := gob.NewDecoder(bytes.NewReader(data))

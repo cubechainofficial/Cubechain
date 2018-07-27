@@ -10,6 +10,8 @@ import (
     "os"
 )
 
+
+
 func Err(err error, exit int) int {
 	if err != nil {
 		fmt.Println(err)	
@@ -20,6 +22,7 @@ func Err(err error, exit int) int {
 	}
 	return 0
 }
+
 
 func StrToByte(str string) []byte {
 	sb := make([]byte, len(str))
@@ -69,6 +72,7 @@ func StripByte(d []byte, b byte) []byte {
 			return d[i:]
 		}
 	}
+
 	return nil
 }
 
@@ -101,6 +105,21 @@ func Timeout(i time.Duration) chan bool {
 	return t
 }
 
-func CallRpc(com string) string {
+
+func CallRpc(com string,vars []string) string {
+	for k,v:= range vars {
+		fmt.Println(k,v)		
+	}
+	switch com {
+		case "cube_balance":
+		case "cube_transaction_count":
+		case "cube_transaction_list":
+		case "cube_transaction_detail":
+		case "cube_transaction_data":
+	}
+	
 	return fmt.Sprintf("%x", com)
 }
+
+
+

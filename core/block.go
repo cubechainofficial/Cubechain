@@ -1,8 +1,8 @@
 package core
 
 import (
-    "path/filepath"
-	"os"
+	"fmt"
+	"path/filepath"
 	"time"
 	"strconv"
 	"io/ioutil"
@@ -10,12 +10,14 @@ import (
 	"../wallet"
 )
 
-func genesisBlock(Cubenum int) Block {
+var echo=fmt.Println
+
+func GenesisBlock(Cubenum int) Block {
 	var block=*new(Block)
 	if !vaildCubeno(Cubenum) {
 		return block
 	}
-	bFind:=blockFinder("0_"+strconv.Itoa(Cubenum))
+	bFind:=blockFinder(1,Cubenum)
 	if bFind {
 		return block
 	}
@@ -28,49 +30,65 @@ func genesisBlock(Cubenum int) Block {
 	addr:=lib.ByteToStr(a)
 	tx:=txd.TxInput(w,txstr,addr,amount)
 	txp.Tdata=append(txp.Tdata,tx)
-	block.Index=0
+	block.Index=1
 	block.Cubeno=Cubenum
 	block.Timestamp=int(time.Now().Unix())
-	block.Nonce=10
+	block.Nonce=0
 	block.Data=Serialize(*txp)
-	block.PrevCubeHash=cubeHash(Cubenum)
+	block.PrevCubeHash=cubeHash(&block)
 	block.PrevHash=prvHash(Cubenum)
-	block.Hash=calculateHash(block)
-	blockFile(block)
+	block=calculateHash(block)
 	return block
 }
 
 func addBlock(data []byte,Cubenum int) Block{
 	var block Block
 	var oblock Block
-
-	c:=CurrentHeight()
-	if c<1 {
+	ch:=CurrentHeight()
+	if ch<1 {
+		echo ("Genesis block not create")
 		return block
 	}
-	bname:=blockName(strconv.Itoa(c-1)+"_"+strconv.Itoa(Cubenum))
-	err:= fileRead(bname, oblock)
+	err:=BlockRead(ch-1,Cubenum,&oblock)
 	lib.Err(err,0)
-	block.Index=c
+	block.Index=ch
 	block.Timestamp=int(time.Now().Unix())
-	block.Nonce=10
+	block.Nonce=0
 	block.Cubeno=Cubenum
 	block.Data=data
-	block.PrevCubeHash=cubeHash(Cubenum) 
 	block.PrevHash=oblock.Hash
-	block.Hash=calculateHash(block)
-	blockFile(block)
+	block.PrevCubeHash=cubeHash(&block) 
+	block=calculateHash(block)
 	return block
 }
 
+func StringBlock(block Block) string{
+	str:=strconv.Itoa(block.Index) + "|" + strconv.Itoa(block.Cubeno) + "|" + strconv.Itoa(block.Timestamp) + "|" + TxpoolStr(Deserialize(block.Data)) + "|" + block.Hash+ "|" + block.PrevHash + "|" +block.PrevCubeHash + "|"+ strconv.Itoa(block.Nonce)
+	return str
+}
 
-func calculateHash(block Block)  string {
-	str := strconv.Itoa(block.Index) + strconv.Itoa(block.Cubeno) + strconv.Itoa(block.Timestamp) + lib.ByteToStr(block.Data) + block.PrevHash + block.PrevCubeHash + strconv.Itoa(block.Nonce)
+func calculateHash(block Block) Block{
+	var p=new(POH)
+	hash,blc:=p.PowBlockHash(block,Configure.Address)
+	if blc.Hash==hash {
+		blockFile(blc)
+	}
+	return blc
+}
+
+func calculateHashVerify(block Block) string{
+	str:=strconv.Itoa(block.Index) + strconv.Itoa(block.Cubeno) + strconv.Itoa(block.Timestamp) + lib.ByteToStr(block.Data) + block.PrevHash + block.PrevCubeHash + strconv.Itoa(block.Nonce)
 	return setHash(str)
 }
 
-func cubeHash(cubenum int) string {
-	return setHash(strconv.Itoa(cubenum))
+func cubeHash(block *Block) string {
+	var p=new(POH)
+	hash:=p.PowCubeHash(block,Configure.Address)
+	return hash
+}
+
+func cubeHashVerify(cubenum int) string {
+	return setHash2(strconv.Itoa(cubenum))
 }
 
 func prvHash(cubenum int) string {
@@ -84,41 +102,32 @@ func fileName(block *Block) string {
 
 func blockFile(block Block) error {
 	filename:=fileName(&block)
-	err := fileWrite(filename, block)
+	datapath:=CubePath(block.Index) + string(filepath.Separator) 
+	err:=fileWrite2(datapath+string(filepath.Separator)+filename,block)
 	return err
 }
 
 func blockStrFile(block Block) error {
-	filename:=strconv.Itoa(block.Index) + "_" + strconv.Itoa(block.Cubeno) + "_" + block.Hash + ".blc"
-	str := strconv.Itoa(block.Index) + strconv.Itoa(block.Cubeno) + strconv.Itoa(block.Timestamp) + lib.ByteToStr(block.Data) + block.PrevHash + block.PrevCubeHash + strconv.Itoa(block.Nonce)
+	filename:=fileName(&block)
+	str:=strconv.Itoa(block.Index) + strconv.Itoa(block.Cubeno) + strconv.Itoa(block.Timestamp) + lib.ByteToStr(block.Data) + block.PrevHash + block.PrevCubeHash + strconv.Itoa(block.Nonce)
 	bytes:=[]byte(str)
-	path,_:=os.Executable()
-	err:= ioutil.WriteFile(path+ string(filepath.Separator) +"bdata"+ string(filepath.Separator) +filename, bytes, 0)
+	err:= ioutil.WriteFile(CubePath(block.Index)+string(filepath.Separator)+filename, bytes, 0)
 	return err
 }
 
-func GetBalance(addr string) int {
-	var amount=0
-	var iBlock [27]Block
-	var Txd TransactionData
-	c:=CurrentHeight()-1
-	for i:=0;i<27;i++ {
-		err:=blockRead(c,i,iBlock[i])
-		lib.Err(err,0)	
-		if i==Configure.Indexing || i==Configure.Statistics || i==Configure.Escrow || i==Configure.Format || i==Configure.Edit {
-		} else {
-			iData:=Deserialize(iBlock[i].Data)
-			for _,v := range iData.Tdata {
-				if v.DataType=="tx" {
-					if(lib.ByteToStr(Txd.From)==addr) {
-						amount+=Txd.Amount*(-1)
-					}
-					if(lib.ByteToStr(Txd.To)==addr) {
-						amount+=Txd.Amount
-					}
-				}
-			}
-		}
-	}
-	return amount
+func StrFile(str string,idx int) error {
+	filename:="str"+strconv.Itoa(idx)+".blc"
+	bytes:=[]byte(str)
+	err:= ioutil.WriteFile(CubePath(idx)+string(filepath.Separator)+filename, bytes, 0)
+	return err
+}
+
+func PrintBlockHead(block Block) {
+	echo ("Index =",block.Index)
+	echo ("Cubeno =",block.Cubeno)
+	echo ("Timestamp =",block.Timestamp)
+	echo ("Hash =",block.Hash)
+	echo ("PrevHash =",block.PrevHash)
+	echo ("PrevCubeHash =",block.PrevCubeHash)
+	echo ("Nonce =",block.Nonce)
 }
