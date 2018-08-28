@@ -14,7 +14,7 @@ var echo=fmt.Println
 
 func GenesisBlock(Cubenum int) Block {
 	var block=*new(Block)
-	if !vaildCubeno(Cubenum) {
+	if !validCubeno(Cubenum) {
 		return block
 	}
 	bFind:=blockFinder(1,Cubenum)
