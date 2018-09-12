@@ -1,26 +1,27 @@
 package core
 
 import (
-	"time"
-	"log"
 	"bytes"
 	"encoding/gob"
+	"log"
 	"strconv"
-	"../wallet"
-	"../lib"
+	"time"
+
+	"github.com/cubechainofficial/Cubechain/lib"
+	"github.com/cubechainofficial/Cubechain/wallet"
 )
 
-func (tx TxData) TxInput(w wallet.Wallet,from string, to string,amount int) TxData {
-	tx.DataType="tx"
-	txd:=new(TransactionData)
-	txd.Timestamp=int(time.Now().Unix())
-	txd.From=lib.StrToByte(from)
-	txd.To=lib.StrToByte(to)
-	txd.Amount=amount
-	txd.Nonce=100
-	txd.Hash=lib.StrToByte(setHash(strconv.Itoa(txd.Timestamp)+from+to+strconv.Itoa(amount)+strconv.Itoa(txd.Nonce)))
-	txd.Sign,_=w.Sign(txd.Hash)
-	tx.DataTx=*txd
+func (tx TxData) TxInput(w wallet.Wallet, from string, to string, amount int) TxData {
+	tx.DataType = "tx"
+	txd := new(TransactionData)
+	txd.Timestamp = int(time.Now().Unix())
+	txd.From = lib.StrToByte(from)
+	txd.To = lib.StrToByte(to)
+	txd.Amount = amount
+	txd.Nonce = 100
+	txd.Hash = lib.StrToByte(setHash(strconv.Itoa(txd.Timestamp) + from + to + strconv.Itoa(amount) + strconv.Itoa(txd.Nonce)))
+	txd.Sign, _ = w.Sign(txd.Hash)
+	tx.DataTx = *txd
 	return tx
 }
 
@@ -36,14 +37,14 @@ func (tx *TxData) Serialize() []byte {
 
 func TxpoolStr(tx TxPool) string {
 	var str string
-	for _,v := range tx.Tdata {
-		str+=TxpdataStr(v.DataTx)
+	for _, v := range tx.Tdata {
+		str += TxpdataStr(v.DataTx)
 	}
 	return str
 }
 
 func TxpdataStr(tx TransactionData) string {
-	str:=strconv.Itoa(tx.Timestamp)+ lib.ByteToStr(tx.From) + lib.ByteToStr(tx.To) +strconv.Itoa(tx.Amount) + lib.ByteToStr(tx.Hash) + lib.ByteToStr(tx.Sign) +strconv.Itoa(tx.Nonce)
+	str := strconv.Itoa(tx.Timestamp) + lib.ByteToStr(tx.From) + lib.ByteToStr(tx.To) + strconv.Itoa(tx.Amount) + lib.ByteToStr(tx.Hash) + lib.ByteToStr(tx.Sign) + strconv.Itoa(tx.Nonce)
 	return str
 }
 
@@ -117,21 +118,21 @@ func EscrowDeserialize(data []byte) EBlock {
 	return idata
 }
 
-func EscrowInput(w wallet.Wallet,from string, to string,amount int,Etype int,EKey string,Etime int) EscrowData {
+func EscrowInput(w wallet.Wallet, from string, to string, amount int, Etype int, EKey string, Etime int) EscrowData {
 	var tx EscrowData
-	txd:=new(TransactionData)
-	txd.Timestamp=int(time.Now().Unix())
-	txd.From=lib.StrToByte(from)
-	txd.To=lib.StrToByte(to)
-	txd.Amount=amount
-	txd.Nonce=100
-	txd.Hash=lib.StrToByte(setHash(strconv.Itoa(txd.Timestamp)+from+to+strconv.Itoa(amount)+strconv.Itoa(txd.Nonce)))
-	txd.Sign,_=w.Sign(txd.Hash)
-	
-	tx.EscrowTx=*txd
-	tx.EscrowType=Etype
-	tx.EscrowKey=EKey
-	tx.EscrowTime=Etime
-	tx.State=0
+	txd := new(TransactionData)
+	txd.Timestamp = int(time.Now().Unix())
+	txd.From = lib.StrToByte(from)
+	txd.To = lib.StrToByte(to)
+	txd.Amount = amount
+	txd.Nonce = 100
+	txd.Hash = lib.StrToByte(setHash(strconv.Itoa(txd.Timestamp) + from + to + strconv.Itoa(amount) + strconv.Itoa(txd.Nonce)))
+	txd.Sign, _ = w.Sign(txd.Hash)
+
+	tx.EscrowTx = *txd
+	tx.EscrowType = Etype
+	tx.EscrowKey = EKey
+	tx.EscrowTime = Etime
+	tx.State = 0
 	return tx
 }

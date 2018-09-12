@@ -5,24 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"time"
-    "os"
 )
-
-
 
 func Err(err error, exit int) int {
 	if err != nil {
-		fmt.Println(err)	
+		fmt.Println(err)
 	}
-	if exit>=1 {
+	if exit >= 1 {
 		os.Exit(exit)
 		return 1
 	}
 	return 0
 }
-
 
 func StrToByte(str string) []byte {
 	sb := make([]byte, len(str))
@@ -95,7 +92,6 @@ func SHAString(data []byte) string {
 	return fmt.Sprintf("%x", data)
 }
 
-
 func Timeout(i time.Duration) chan bool {
 	t := make(chan bool)
 	go func() {
@@ -105,21 +101,17 @@ func Timeout(i time.Duration) chan bool {
 	return t
 }
 
-
-func CallRpc(com string,vars []string) string {
-	for k,v:= range vars {
-		fmt.Println(k,v)		
+func CallRpc(com string, vars []string) string {
+	for k, v := range vars {
+		fmt.Println(k, v)
 	}
 	switch com {
-		case "cube_balance":
-		case "cube_transaction_count":
-		case "cube_transaction_list":
-		case "cube_transaction_detail":
-		case "cube_transaction_data":
+	case "cube_balance":
+	case "cube_transaction_count":
+	case "cube_transaction_list":
+	case "cube_transaction_detail":
+	case "cube_transaction_data":
 	}
-	
+
 	return fmt.Sprintf("%x", com)
 }
-
-
-
