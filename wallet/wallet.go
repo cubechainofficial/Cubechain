@@ -8,9 +8,9 @@ import (
 	"crypto/sha256"
 	"log"
 	"math/big"
-	"../lib"
-	"./ripemd160"
 
+	"github.com/cubechainofficial/Cubechain/lib"
+	"github.com/cubechainofficial/Cubechain/wallet/ripemd160"
 )
 
 const prefix = byte(0x1C)
@@ -47,7 +47,6 @@ func HashPubKey(pubKey []byte) []byte {
 	return publicRIPEMD160
 }
 
-
 func checksum(payload []byte) []byte {
 	firstSHA := sha256.Sum256(payload)
 	secondSHA := sha256.Sum256(firstSHA[:])
@@ -76,14 +75,16 @@ func ValidateAddress(address string) bool {
 func (w Wallet) Sign(hash []byte) ([]byte, error) {
 	key := w.PrivateKey
 	r, s, _ := ecdsa.Sign(rand.Reader, &key, hash)
+	// TODO: where is EncodeBig?
 	return EncodeBig([]byte{}, bigJoin(30, r, s)), nil
 }
 
 func (w Wallet) SignatureVerify(sig, hash []byte) bool {
 	pub := w.PrivateKey.PublicKey
+	// TODO: where is DecodeBig?
 	b, _ := DecodeToBig(sig)
 	sigg := splitBig(b, 2)
-	r, s := sigg[0], sigg[1]	
+	r, s := sigg[0], sigg[1]
 	return ecdsa.Verify(&pub, hash, r, s)
 }
 

@@ -3,8 +3,8 @@ package wallet
 import (
 	"bytes"
 	"math/big"
-	"strconv"
 )
+
 var b58Alphabet = []byte("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
 
 func Base58Encode(input []byte) []byte {

@@ -10,8 +10,8 @@ type Node struct {
 
 type BinaryTree struct {
 	root  *Node
-	size  int 
-	order int 
+	size  int
+	order int
 }
 
 func (n *Node) Left() *Node {
@@ -158,7 +158,6 @@ func (b *BinaryTree) deleteDeepestRightMostNode(drn *Node) {
 	}
 }
 
-
 func (b *BinaryTree) Delete(val interface{}) {
 	if b.root == nil {
 		fmt.Println("Empty Tree")
@@ -211,4 +210,3 @@ func (b *BinaryTree) Print() {
 		}
 	}
 }
-
