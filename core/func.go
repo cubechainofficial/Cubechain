@@ -6,12 +6,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
-    "bytes"
+    	"bytes"
 	"net"
 	"net/http"
 	"io"
 	"io/ioutil"
-    "path/filepath"
+    	"path/filepath"
 	"../config"
 )
 
@@ -207,29 +207,6 @@ func CubeFileName(idx int) string {
 	result:=FileSearch(dirname,find)
 	return result
 }
-
-/*
-func GetTxCount(addr string) int {
-	c,count:=0,0
-	var block Block
-	if c<=0 {
-		c=CurrentHeight()-1
-	}
-	for i:=0;i<c;i++ {
-		mblock.Index=i
-		err:=block.Read()
-		Err(err,0)
-		if(Block.Data.From==addr) {
-			count++
-		}
-	}
-	return count
-}
-
-*/
-
-
-
 
 func NodeSend(cmode string,data string) string {
 	arr:=IpCheck()
