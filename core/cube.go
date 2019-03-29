@@ -1,250 +1,261 @@
 package core
 
 import (
-	"fmt"
-	"strings"
+//	"fmt"
+	//"strings"
+	"sync"
 	"strconv"
 	"time"
-	"os"
-    "path/filepath"
-	"../lib"
+	//"os"
+	//"encoding/gob"
 )
 
-var CubeSetNum [27]string
-func CubenoSet()  {
-	k:=0
+type Cube struct {
+	Cubeno		int
+	Timestamp	int
+	Blocks		[27]Block
+	PrevHash    string
+	CHash       string
+	Nonce       int
+}
+
+var waitGroup sync.WaitGroup
+
+
+func (cube *Cube) Input(cubeno int) {
+	cube.Cubeno=cubeno
+	cube.Cubeno=cubeno
+	cube.Timestamp=int(time.Now().Unix())
+	var blocks [27]Block
+
+	Sumfee=0.0
 	for i:=0;i<27;i++ {
-		switch i+1 {
-		case Configure.Indexing:
-			CubeSetNum[i]="Indexing";
-		case  Configure.Statistics:
-			CubeSetNum[i]="Statistics";
-		case  Configure.Escrow:
-			CubeSetNum[i]="Escrow";
-		case  Configure.Format:
-			CubeSetNum[i]="Format";
-		case  Configure.Edit:
-			CubeSetNum[i]="Edit";
-		default:
-			k++
-			CubeSetNum[i]="Data"+strconv.Itoa(k);
+		blocks[i].Input(cubeno,i+1)
+	}
+	cube.Blocks=blocks
+	cube.SetPrevHash()
+	cube.SetHash()
+	cube.PowMining()
+
+	if cube.Nonce>0 {
+		br:=cube.Broadcast()
+		if br {
+			cube.Save()
+			decho ("save cube "+strconv.Itoa(cubeno))
+			cube.MineBroadcast()
 		}
 	}
 }
 
-func ChainSet(cubechain *Cubechain) {
-	*cubechain=ChainFileRead()
-}
+func (cube *Cube) InputChanel(cubeno int) {
+	cube.Cubeno=cubeno
+	cube.Cubeno=cubeno
+	cube.Timestamp=int(time.Now().Unix())
+    bno:=make(chan int)
+	var blocks [27]Block
+	waitGroup.Add(27)
 
-func CubingToChain(idx int,cubechain *Cubechain) int{
-	result:=cubechain.Verify
-	cubing:=CubingFileRead2(idx)
-	cubechain.Chain=append(cubechain.Chain,CChain{cubing.Index,cubing.Timestamp,cubing.Chash})
-	return result
-}
+	Sumfee=0.0
+	for i:=0;i<27;i++ {
+		go blockInput(cubeno,bno,&blocks[i])
+		bno<-(i+1)
+	}
+	waitGroup.Wait()
 
-func ChainCheck(cubechain *Cubechain) int {
-	result:=0
-	ch:=CurrentHeight()
-	ch--
-	if ch==cubechain.Verify {
-		if len(cubechain.Chain)==cubechain.Verify {
-			fmt.Println("Chain is verify.")
-		} else {
-			fmt.Println("Chain is not verify.")
-		}
-	} else {
-		for ch>cubechain.Verify {
-			cubechain.Verify++
-			result=CubingToChain(cubechain.Verify,cubechain)
+	cube.Blocks=blocks
+	cube.SetPrevHash()
+	cube.SetHash()
+	cube.PowMining()
+
+	if cube.Nonce>0 {
+		br:=cube.Broadcast()
+		if br {
+			cube.Save()
+			decho ("save cube "+strconv.Itoa(cubeno))
+			cube.MineBroadcast()
 		}
 	}
-	ChainFileWrite(cubechain)
-	return result
 }
 
-func chainFileName() string {
-	filename:=setHash(Configure.Network)+".chn"
-	return filename
+
+func (cube *Cube) SetCubing(cubing *Cubing) {
+	cubing.Cubeno=cube.Cubeno
+	cubing.Timestamp=cube.Timestamp
+	cubing.PrevHash=cube.PrevHash
+	cubing.CHash=cube.CHash
+	cubing.Nonce=cube.Nonce
+	for i:=0;i<27;i++ {
+		cubing.Hash1[i]=cube.Blocks[i].Hash
+		cubing.Hash2[i]=cube.Blocks[i].PatternHash
+	}
 }
 
-func ChainFileWrite(cubechain *Cubechain) error {
-	filename:=chainFileName()
-	path:=Configure.Datafolder
-	err:=fileWrite2(path+string(filepath.Separator)+filename,cubechain)
+func (cube *Cube) Read() error {
+	filename:=cube.FileName()
+	datapath:=cube.FilePath()
+	decho(datapath+string(filepathSeparator)+filename)
+	err:=FileRead(datapath+string(filepathSeparator)+filename,cube)
+	decho(err)
 	return err
 }
 
-func ChainFileRead() Cubechain {
-	var cubechain Cubechain
-	filename:=chainFileName()
-	path:=Configure.Datafolder
-	err:=pathRead(path+string(filepath.Separator)+filename,&cubechain)
-	if err!=nil {
-		fmt.Println(err)
-	}
-	return cubechain
-}
-
-func CubingSet(cblock *CubeBlock) Cubing {
-	var cubing Cubing
-	cubing.Index=cblock.Index
-	cubing.Timestamp=cblock.Timestamp
-	cubing.Chash=cblock.Chash
-	for i:=0;i<27;i++ {
-		cubing.Hash1[i]=cblock.Cube[i].Hash
-		cubing.Hash2[i]=cblock.Cube[i].PrevCubeHash
-	}
-	return cubing
-}
-
-func cubingFileName(cubing *Cubing) string {
-	filename:=cubing.Chash+".cbi"
-	return filename
-}
-
-func CubingFileWrite(cubing Cubing) error {
-	filename:=cubingFileName(&cubing)
-	path:=CubePath(cubing.Index)
-	err:=fileWrite2(path+string(filepath.Separator)+filename,cubing)
-	return err
-}
-
-func CubingFileRead(index int,hash string) Cubing {
-	var cubing Cubing
-	filename:=hash+".cbi"
-	path:=CubePath(index)
-	err:=pathRead(path+string(filepath.Separator)+filename,&cubing)
-	if err!=nil {
-		fmt.Println(err)
-	}
-	return cubing
-}
-
-func CubingFileRead2(index int) Cubing {
-	var cubing Cubing
-	path:=CubePath(index)
-	filename:=fileSearch(path,".cbi")
-	err:=pathRead(path+string(filepath.Separator)+filename,&cubing)
-	if err!=nil {
-		fmt.Println(err)
-	}
-	return cubing
-}
-
-func cfileName(cblock *CubeBlock) string {
-	filename:=cblock.Chash+".cub"
-	return filename	
-}
-
-func cblockFile(cblock *CubeBlock) error {
-	filename:=cfileName(cblock)
-	path:=CubePath(cblock.Index)
-	err:=fileWrite2(path+string(filepath.Separator)+filename,cblock)
+func (cube *Cube) Save() error {
+	filename:=cube.FileName()
+	path:=FilePath(cube.Cubeno)
+	err:=FileWrite(path+filepathSeparator+filename,cube)
 	if err==nil {
-		cubing:=CubingSet(cblock)
-		CubingFileWrite(cubing)
+		//var cubing Cubing
+		cube.SetCubing(&PrvCubing)
+		CubingFileWrite(PrvCubing)
 	}
 	return err
 }
 
-func CubePath(idx int) string {
-	divn:=idx/Configure.Datanumber
-	divm:=idx%Configure.Datanumber
-	if divm>0 {
-		divn++
-	} else if divm==0 {
-		divm=Configure.Datanumber
+func (cube *Cube) String() string {
+	bhash:=""
+	phash:=""
+	for i:=0;i<27;i++ {
+		bhash+=cube.Blocks[i].Hash+","
+		phash+=cube.Blocks[i].PatternHash+","
 	}
-	if divn==0 {
-		divn++
-		divm=1
-	}
-	nhex:=fmt.Sprintf("%x",Configure.Datanumber)
-	mcnt:=len(nhex)
-	nstr:=fmt.Sprintf("%0.5x",divn)
-	mstr:=fmt.Sprintf("%0."+strconv.Itoa(mcnt)+"x",divm)
-	dirname:=Configure.Datafolder+string(filepath.Separator)+nstr+string(filepath.Separator)+mstr
-	if dirExist(dirname)==false {
-		if err:=os.MkdirAll(dirname, os.FileMode(0755)); err!=nil {
-			return "Directory not found.\\1\\1"
-		}	
-	}	
-	return dirname
+	toStr:=strconv.Itoa(cube.Cubeno)+CubeDelim+strconv.Itoa(cube.Timestamp)+CubeDelim+bhash+CubeDelim+phash+CubeDelim+cube.PrevHash+CubeDelim+cube.CHash+CubeDelim+strconv.Itoa(cube.Nonce)
+	return toStr
 }
 
-func CubePathNum(path string) int {
-	result:=0
-	separator:=string(filepath.Separator)
-	split:=strings.Split(path, separator)
-	slen:=len(split)
-	nint,_:=strconv.ParseUint(split[slen-2],16,32)
-	mint,_:=strconv.ParseUint(split[slen-1],16,32)
-	result=(int(nint)-1)*Configure.Datanumber+int(mint)
+func (cube *Cube) MineString() string {
+	bhash:=""
+	phash:=""
+	for i:=0;i<27;i++ {
+		bhash+=cube.Blocks[i].Hash+","
+		phash+=cube.Blocks[i].PatternHash+","
+	}
+	toStr:=strconv.Itoa(cube.Cubeno)+CubeDelim+strconv.Itoa(cube.Timestamp)+CubeDelim+bhash+CubeDelim+phash+CubeDelim+cube.PrevHash+CubeDelim+cube.CHash+CubeDelim+strconv.Itoa(cube.Nonce)
+	toStr+=CubeDelim+strconv.FormatFloat(Pratio.BlockHash+Sumfee,'f',-1,64)+CubeDelim+Configure.Address+CubeDelim+strconv.FormatInt(cube.FileSize(),10)
+
+	return toStr
+}
+
+func (cube *Cube) HashString() string {
+	bhash:=""
+	for i:=0;i<27;i++ {
+		bhash+=cube.Blocks[i].Hash
+		bhash+=cube.Blocks[i].PatternHash
+	}
+	toStr:=strconv.Itoa(cube.Cubeno)+CubeDelim+strconv.Itoa(cube.Timestamp)+CubeDelim+bhash+CubeDelim+cube.PrevHash
+	return toStr
+}
+
+func (cube *Cube) SetPrevHash() {
+	cube.PrevHash=cube.GetPrevHash()
+}
+
+func (cube *Cube) GetPrevHash() string {
+	if cube.Cubeno<2 {
+		return CubingHash("GenesisCubehash")
+	} else if PrvCubing.Cubeno==cube.Cubeno-1 && PrvCubing.CHash>"" {
+	} else if CubingFileName(cube.Cubeno-1)>"" {
+		PrvCubing=CubingFileRead(cube.Cubeno-1)
+	} else if CurrCube.Cubeno==cube.Cubeno-1 {
+		CurrCube.SetCubing(&PrvCubing)
+	} else if CubeFileName(cube.Cubeno-1)>"" {
+		CurrCube.Cubeno=cube.Cubeno-1
+		CurrCube.Read()
+		CurrCube.SetCubing(&PrvCubing)
+	} else {
+		downpath:=CubeDownload(cube.Cubeno-1)
+		if downpath>"" {
+			FileRead(downpath,&CurrCube)
+			if CurrCube.Cubeno==cube.Cubeno-1 {
+				CurrCube.SetCubing(&PrvCubing)
+			}  else {
+				PrvCubing=GetCubing(cube.Cubeno-1)
+			}             
+		} else {
+			PrvCubing=GetCubing(cube.Cubeno-1)
+		}
+	} 
+	return PrvCubing.CHash
+}
+
+func (cube *Cube) SetHash() {
+	cube.CHash=cube.GetHash()
+}
+
+func (cube *Cube) GetHash() string {
+	cube.Nonce=0
+	hashstr:=cube.HashString()
+	result:=CallHash(hashstr,4)
 	return result
 }
 
-func GenesisCube() CubeBlock {
-	var clen=CurrentHeight();
-	var block Block
-	var sblock [27]Block
-	var cblock CubeBlock
-	var chash string
-	if clen>1 { 
-		fmt.Printf("Invalid genesis cube.\n")
-		return 	cblock
+func (cube *Cube) Mining() {
+	phs:=PohSet(cube.Cubeno)
+	phs.Cubeno=cube.Cubeno
+	phs.Blockno=0
+	phs.HashStr=cube.CHash	
+	phs.Result(0)
+	if phs.ResultHash>"" && phs.ResultNonce>0 {
+		cube.Nonce=phs.ResultNonce
+		cube.CHash=phs.ResultHash
 	}
-	for i:=0;i<27;i++ {
-		block=GenesisBlock(i)
-		sblock[i]=block
-		chash+=block.Hash
-	}
-	cblock=CubeBlock{1,0,sblock,PowCubingHash(chash)}
-	cblock.Timestamp=int(time.Now().Unix())
-	cblockFile(&cblock)
-	return cblock
 }
 
-func AddCube(str string) CubeBlock {
-	var clen=CurrentHeight();
-	var block Block
-	var sblock [27]Block
-	var cblock CubeBlock
-	var chash string
-	if clen<1 {
-		clen=1
-	}
-	for i:=0;i<27;i++ {
-		str=str+strconv.Itoa(i)
-		block=addBlock([]byte(str),i)
-		sblock[i]=block
-		chash+=block.Hash
-	}
-	cblock=CubeBlock{clen,0,sblock,PowCubingHash(chash)}
-	cblock.Timestamp=int(time.Now().Unix())
-	cblockFile(&cblock)
-	return cblock
+func (cube *Cube) PowMining() {
+	max:=10000
+	cube.CHash,cube.Nonce=PowCubeHashing(cube.CHash,max)
 }
 
-func GetBalanceCheck(addr string) int {
-	var amount=0
-	var iBlock [27]Block
-	var Txd TransactionData
-	c:=CurrentHeight()-1
+func (cube *Cube) Verify() bool {
+	if cube.PrevHash!=cube.GetPrevHash() {
+		return false
+	} else if cube.CHash!=cube.GetHash() {
+		return false
+	} else {
+		for i:=0;i<27;i++ {
+			if cube.Blocks[i].Verify() {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (cube *Cube) Broadcast() bool {
+	result:=false
+	r:=NodeCube("cubesave",cube.String())
+	decho (r)
+	if r=="Success." {
+		result=true
+	}
+	return result
+}
+
+
+func (cube *Cube) MineBroadcast() bool {
+	result:=false
+	r:=NodeSend("cubesave",cube.MineString())
+	decho (r)
+	if r=="success." {
+		result=true
+	}
+	return result
+}
+
+func (cube *Cube) Balance(addr string) float64 {
+	amount:=0.0
 	for i:=0;i<27;i++ {
-		err:=BlockRead(c,i,iBlock[i])
-		lib.Err(err,0)	
 		if i==Configure.Indexing || i==Configure.Statistics || i==Configure.Escrow || i==Configure.Format || i==Configure.Edit {
 		} else {
-			iData:=Deserialize(iBlock[i].Data)
-			for _,v:=range iData.Tdata {
-				if v.DataType=="tx" {
-					if(lib.ByteToStr(Txd.From)==addr) {
-						amount+=Txd.Amount*(-1)
-					}
-					if(lib.ByteToStr(Txd.To)==addr) {
-						amount+=Txd.Amount
-					}
+			var TxArr []TxData
+			iData:=TreeDeserialize(cube.Blocks[i].Data)
+			iData.Coin.Convert(&TxArr);
+			iData.Poh.Convert(&TxArr);
+			for _,v:=range TxArr {
+				if v.From==addr {
+					amount+=v.Amount*(-1)
+				}
+				if v.To==addr {
+					amount+=v.Amount
 				}
 			}
 		}
@@ -252,53 +263,69 @@ func GetBalanceCheck(addr string) int {
 	return amount
 }
 
-func CubeBalance(addr string,c int) int {
-	var amount=0
-	var iBlock [27]Block
-	var Txd TransactionData
-	if c<=0 {
-		c=CurrentHeight()-1
-	}
-	for i:=0;i<27;i++ {
-		err:=BlockRead(c,i,&iBlock[i])
-		lib.Err(err,0)
-		if i==Configure.Indexing || i==Configure.Format || i==Configure.Edit {
-		} else if i==Configure.Statistics {
-		} else if i==Configure.Escrow {
-		} else {
-			iData:=Deserialize(iBlock[i].Data)
-			for _,v:=range iData.Tdata {
-				if v.DataType=="tx" {
-					if lib.ByteToStr(Txd.From)==addr {
-						amount+=Txd.Amount*(-1)
-					}
-					if lib.ByteToStr(Txd.To)==addr {
-						amount+=Txd.Amount
-					}
-				}
-			}
-		}
-	}
-	return amount
-}
-
-func CubeCount(addr string,c int) (int,int) {
+func (cube *Cube) TxCount(addr string) (int,int) {
 	var count=0
 	var ecount=0
-	var iBlock [27]Block
-	if c<=0 {
-		c=CurrentHeight()-1
-	}
 	for i:=0;i<27;i++ {
-		err:=BlockRead(c,i,&iBlock[i])
-		lib.Err(err,0)
-		if i==Configure.Indexing || i==Configure.Format || i==Configure.Edit {
-		} else if i==Configure.Statistics {
-		} else if i==Configure.Escrow {
-			ecount++
-		} else {
-			count++
+		if i==Configure.Indexing || i==Configure.Format || i==Configure.Edit || i==Configure.Statistics {
+			var TxArr []TxData
+			iData:=TreeDeserialize(cube.Blocks[i].Data)
+			iData.Coin.Convert(&TxArr);
+			iData.Poh.Convert(&TxArr);
+			for _,v:=range TxArr {
+				if v.From==addr {
+					if i==Configure.Escrow { ecount++ } else { count++ }
+				}
+			}
 		}
 	}
 	return count,ecount
 }
+
+func (cube *Cube) FileName() string {
+	filename:=""
+	if cube.CHash>"" {
+		filename=cube.CHash+".cub"
+	} else {
+		filename=CubeFileName(cube.Cubeno)
+	}
+	return filename	
+}
+
+func (cube *Cube) FilePath() string {
+	filepath:=FilePath(cube.Cubeno)
+	return filepath	
+}
+
+func (cube *Cube) FileSize() int64 {
+	filepath:=cube.FilePath()
+	filename:=cube.FileName()
+	filesize:=FileSize(filepath+filepathSeparator+filename)
+	return filesize	
+}
+
+func (cube *Cube) Print() {
+	echo ("==============Cube Head==============")
+	echo ("Cubeno=",cube.Cubeno)
+	echo ("Timestamp=",cube.Timestamp)
+	echo ("PrevHash=",cube.PrevHash)
+	echo ("CHash=",cube.CHash)
+	echo ("==============Cube Blocks==============")
+
+	for i:=0;i<27;i++ {
+		j:=i+1
+		echo ("==============Cube Blocks["+strconv.Itoa(j)+"]==============")
+		cube.Blocks[i].Print()
+	}
+}
+
+func (cube *Cube) FileInfo() {
+	echo ("==============File Info==============")
+	echo ("FileName=",cube.FileName())
+	echo ("FilePath=",cube.FilePath())
+	echo ("FileSize=",cube.FileSize())
+}
+
+
+
+

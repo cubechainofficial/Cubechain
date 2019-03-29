@@ -1,246 +1,336 @@
 package core
 
 import (
-	"crypto/sha256"
-	"crypto/sha512"
-	"encoding/hex"
 	"encoding/gob"
-	"runtime"
 	"fmt"
 	"os"
 	"strconv"
-    "path/filepath"
 	"strings"
+    "bytes"
+	"net"
+	"net/http"
+	"io"
+	"io/ioutil"
+    "path/filepath"
+	"../config"
 )
 
-func vaildCubeno(cno int) bool {
-	result:=true
-	if cno<0 || cno>26 {
-		result=false	
-	} 
+var Configure config.Configuration
+var filepathSeparator=string(filepath.Separator)
+var echo=fmt.Println
+var MineCubeno=0
+var TxMine string
+var TxMerkleHash string
+var Sumfee=0.0
+var Txamount=0.0
+var Txcnt=0
+var Tkcnt=0
+var CubeSetNum [27]string
+var DebugMode=false
+
+var Version="0.98"
+//var cubechainInfo Cubechain
+var Pratio=Pohr{4.566,4.566,4.566,4.566}
+var TxDelim="|"
+var BlockDelim="||"
+var CubeDelim="|||"
+var CNO=1
+var PrvCubing Cubing
+var CurrCube Cube
+
+func Err(err error, exit int) int {
+	if err != nil {
+		fmt.Println(err)	
+	}
+	if exit>=1 {
+		os.Exit(exit)
+		return 1
+	}
+	return 0
+}
+
+func netError(err error) {
+	if err!=nil && err!=io.EOF {
+		fmt.Println("Network Error : ", err)
+	}
+}
+
+func IpCheck() []string {
+	host, err := os.Hostname()
+	if err != nil {
+		return nil
+	}
+	addrs, err := net.LookupHost(host)
+	if err != nil {
+		return nil
+	}
+	addrs=append(addrs,host)
+	if len(addrs)==2 {
+		addrs2:=make([]string,3)
+		addrs2[0]="mac_linux"
+		addrs2[1]=addrs[0]
+		addrs2[2]=addrs[1]
+		addrs=addrs2
+	}
+	return addrs
+}
+
+func GetBytes(key interface{}) []byte {
+    var buf bytes.Buffer
+	var Tdata TxData
+	var Tbst TxBST
+
+	gob.Register(Tdata)  
+	gob.Register(Tbst)
+	enc := gob.NewEncoder(&buf)
+    err := enc.Encode(key)
+    if err != nil {
+		decho(err)
+        return nil
+    }
+    return buf.Bytes()
+}
+
+
+
+func GetCubeHeight() string {
+	result:=NodeSend("cubeheight","0")
 	return result
 }
 
-func setHash(str string) string {
-	h:=sha256.New()
-	h.Write([]byte(str))
-	hashed:=h.Sum(nil)
-	return hex.EncodeToString(hashed)
-}
-
-func setHash2(str string) string {
-	h:=sha512.New384()
-	h.Write([]byte(str))
-	hashed:=h.Sum(nil)
-	return hex.EncodeToString(hashed)
-}
-
-func setHash3(str string) string {
-	h:=sha512.New512_224()
-	h.Write([]byte(str))
-	hashed:=h.Sum(nil)
-	return hex.EncodeToString(hashed)
-}
-
-func setHash4(str string) string {
-	h:=sha512.New()
-	h.Write([]byte(str))
-	hashed:=h.Sum(nil)
-	return hex.EncodeToString(hashed)
-}
-
-func CallHash(str string,hno int) string {
-	switch hno {
-		case 2 : return setHash2(str)
-		case 3 : return setHash3(str)
-		case 4 : return setHash4(str)
-		default : return setHash(str)
-	}
-}
-
-func setCubeHash(str string, cno int) string {
-	switch cno {
-		case 3 : return setHash3(str)
-		case 4 : return setHash3(str)
-		case 5 : return setHash3(str)
-		case 6 : return setHash3(str)
-		default : return setHash3(str)
-	}
-}
-
-func fileWrite(path string, object interface{}) error {
-	idx:=object.(Block).Index
-	datapath:=CubePath(idx) + string(filepath.Separator) 
-	file,err:=os.Create(datapath+path)
-	if err==nil {
-		encoder:=gob.NewEncoder(file)
-		encoder.Encode(&object)
-	}
-	file.Close()
-	return err
-}
-
-func fileWrite2(path string, object interface{}) error {
-	file,err:=os.Create(path)
-	if err==nil {
-		encoder:=gob.NewEncoder(file)
-		encoder.Encode(object)
-	}
-	file.Close()
-	return err
-}
-
-func fileRead(filename string, object interface{}) error {
-	idx:=object.(Block).Index
-	datapath:=CubePath(idx) + string(filepath.Separator) 
-	file,err:=os.Open(datapath+filename)
-	if err==nil {
-		decoder:=gob.NewDecoder(file)
-		err=decoder.Decode(&object)
-	}
-	file.Close()
-	return err
-}
-
-func FileRead(filename string, object interface{}) error {
-	idx:=object.(Block).Index
-	datapath:=CubePath(idx) + string(filepath.Separator) 
-	file,err:=os.Open(datapath+filename)
-	if err==nil {
-		decoder:=gob.NewDecoder(file)
-		err=decoder.Decode(object)
-	}
-	file.Close()
-	return err
-}
-
-func pathRead(path string, object interface{}) error {
-	file,err:=os.Open(path)
-	if err==nil {
-		decoder:=gob.NewDecoder(file)
-		err=decoder.Decode(object)
-	}
-	file.Close()
-	return err
-}
-
-func fileCheck(e error) {
-	if e!=nil {
-		_, file, line, _:=runtime.Caller(1)
-		fmt.Println(line, "\t", file, "\n", e)
-		os.Exit(1)
-	}
-}
-
-func BlockName(idx int,cno int) string {
-	find:=strconv.Itoa(idx)+"_"+strconv.Itoa(cno-1)+"_"	
-    dirname:=CubePath(idx)
-	result:=fileSearch(dirname,find)
+func GetCubeHeight2() string {
+	result:=NodeSend2("cubeheight","0")
 	return result
 }
 
-func blockFinder(idx int,cno int) bool {
-	result:=false
-	bf:=BlockName(idx,cno)
-	if bf>"" {
-		result=true
-	}
+func GetCubeHeight3() string {
+	result:=NodeCube("cubeheight","0")
 	return result
 }
 
-func fileSearch(dirname string,find string) string{
-    result:=""
-	d,err:=os.Open(dirname)
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-    defer d.Close()
-    fi, err:=d.Readdir(-1)
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-    for _, fi:=range fi {
-        if fi.Mode().IsRegular() {
-            fstr:=fi.Name()
-			if strings.Index(fstr,find)>=0 {
-				result=fi.Name()
-				return result
-			}
-        }
-    }
+func CubeHeight() int {
+	result,_:=strconv.Atoi(GetCubeHeight3())
 	return result
-}
-
-func MaxFind(dirpath string) string {
-	find:="0"
-    d, err:=os.Open(dirpath)
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-    defer d.Close()
-	fi, err:=d.Readdir(-1)
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-    for _, fi:=range fi {
-        if fi.Mode().IsRegular() {
-        } else {
-  			if fi.Name()>find {
-				find=fi.Name()
-			}
-		}
-   }
-   return find
-}
-
-func BlockRead(index int,cubeno int,object interface{}) error {
-	filename:=BlockName(index,cubeno)
-	datapath:=CubePath(index)+string(filepath.Separator) 
-	file,err:=os.Open(datapath+filename)
-	if err==nil {
-		decoder:=gob.NewDecoder(file)
-		err=decoder.Decode(object)
-	}
-	file.Close()
-	return err
 }
 
 func CurrentHeight() int {
 	result:=0
-	f:=MaxFind(Configure.Datafolder+string(filepath.Separator))
+	f:=MaxFind(Configure.Datafolder+filepathSeparator)
 	if f=="0" {
 		return 1
 	}
-	f2:=MaxFind(Configure.Datafolder+string(filepath.Separator)+f)
+	f2:=MaxFind(Configure.Datafolder+filepathSeparator+f)
 	if f2=="0" {
 		return 1
 	}
 	nint,_:=strconv.ParseUint(f,16,32)
 	mint,_:=strconv.ParseUint(f2,16,32)
 	result=(int(nint)-1)*Configure.Datanumber+int(mint)
-	if fileSearch(CubePath(result),".cub")>"" {
+	if FileSearch(FilePath(result),".cub")>"" {
 		result++
 	}
 	return result	
 }
 
-func dirExist(dirName string) bool{
-	result:=true
-	_,err:=os.Stat(dirName)
-	if err != nil {
-		if os.IsNotExist(err ) {
-			result=false
-		}
-	}
+func GetTxCount(addr string) int {
+	return 1
+}
+
+
+func BlockName(idx int,cno int) string {
+	find:=strconv.Itoa(idx)+"_"+strconv.Itoa(cno)+"_"	
+    dirname:=FilePath(idx)
+	result:=FileSearch(dirname,find)
 	return result
 }
 
-func PathDelete(path string) error {
-	err:=os.RemoveAll(path)
-	os.MkdirAll(path,0755)
+func BlockRead(index int,cubeno int,object interface{}) error {
+	filename:=BlockName(index,cubeno)
+	datapath:=FilePath(index)+filepathSeparator 
+
+	if filename=="" {
+		//fmt.Println(strconv.Itoa(index)+":"+strconv.Itoa(cubeno))
+		return nil
+	}
+	file,err:=os.Open(datapath+filename)
+	if err==nil {
+		decoder:=gob.NewDecoder(file)
+		err=decoder.Decode(object)
+	}
+	file.Close()
+	
 	return err
+}
+
+func BlockScan(cubeno int,blockno int) Block {
+	var block Block
+	BlockRead(cubeno,blockno,&block)
+	return block
+}
+
+
+
+func ReadBlockHash(index int,cubeno int) string {
+	var iBlock Block
+	var hash string
+	err:=BlockRead(index,cubeno,&iBlock)
+	Err(err,0)
+	hash=iBlock.Hash
+	return hash
+}
+
+func ReadBlockPHash(index int,cubeno int) string {
+	var iBlock Block
+	var hash string
+	err:=BlockRead(index,cubeno,&iBlock)
+	Err(err,0)
+	hash=iBlock.PatternHash
+	return hash
+}
+
+
+func CubeRead(index int,object *Cube) error {
+	datapath:=FilePath(index)+filepathSeparator 
+	filename:=FileSearch(datapath,".cub")
+	file,err:=os.Open(datapath+filename)
+	if err==nil {
+		decoder:=gob.NewDecoder(file)
+		err=decoder.Decode(object)
+	}
+	file.Close()
+	return err
+}
+
+func CubeFileName(idx int) string {
+	find:=".cub"	
+    dirname:=FilePath(idx)
+	result:=FileSearch(dirname,find)
+	return result
+}
+
+/*
+func GetTxCount(addr string) int {
+	c,count:=0,0
+	var block Block
+	if c<=0 {
+		c=CurrentHeight()-1
+	}
+	for i:=0;i<c;i++ {
+		mblock.Index=i
+		err:=block.Read()
+		Err(err,0)
+		if(Block.Data.From==addr) {
+			count++
+		}
+	}
+	return count
+}
+
+*/
+
+
+
+
+func NodeSend(cmode string,data string) string {
+	arr:=IpCheck()
+	reader:=strings.NewReader("cmode="+cmode+"&_token=9X1rK2Z2sofIeFpqg6VBXI5aUWsPOfGPGyzzztgu&data="+data+"&mac="+arr[0]+"&ip="+arr[1]+"&hostname="+arr[2]+"&netname="+Configure.Network+"&netset="+Configure.Nettype+"&chaintype="+Configure.Chaintype+"&netport="+strconv.Itoa(Configure.Port)+"&ver="+Version)
+	request,_:=http.NewRequest("POST","http://"+Configure.MainServer+"/"+cmode, reader)
+	request.Header.Add("content-type","application/x-www-form-urlencoded")
+	request.Header.Add("cache-control","no-cache")
+	client:=&http.Client{}
+	res, err := client.Do(request)
+	Err(err,0)
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	Err(err,0)
+	s:=string(body)
+	return s
+}
+
+func NodeSend2(cmode string,data string) string {
+	arr:=IpCheck()
+	reader:=strings.NewReader("cmode="+cmode+"&_token=9X1rK2Z2sofIeFpqg6VBXI5aUWsPOfGPGyzzztgu&data="+data+"&mac="+arr[0]+"&ip="+arr[1]+"&hostname="+arr[2]+"&netname="+Configure.Network+"&netset="+Configure.Nettype+"&chaintype="+Configure.Chaintype+"&netport="+strconv.Itoa(Configure.Port)+"&ver="+Version)
+	request,_:=http.NewRequest("POST","http://"+Configure.PoolServer+"/"+cmode, reader)
+	request.Header.Add("content-type","application/x-www-form-urlencoded")
+	request.Header.Add("cache-control","no-cache")
+	client:=&http.Client{}
+	res, err := client.Do(request)
+	Err(err,0)
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	Err(err,0)
+	s:=string(body)
+	return s
+}
+
+func NodeCube(cmode string,data string) string {
+	arr:=IpCheck()
+	reader:=strings.NewReader("cmode="+cmode+"&_token=9X1rK2Z2sofIeFpqg6VBXI5aUWsPOfGPGyzzztgu&data="+data+"&mac="+arr[0]+"&ip="+arr[1]+"&hostname="+arr[2]+"&netname="+Configure.Network+"&netset="+Configure.Nettype+"&chaintype="+Configure.Chaintype+"&netport="+strconv.Itoa(Configure.Port)+"&ver="+Version)
+	request,_:=http.NewRequest("POST","http://"+Configure.PosServer+"/"+cmode, reader)
+	request.Header.Add("content-type","application/x-www-form-urlencoded")
+	request.Header.Add("cache-control","no-cache")
+	client:=&http.Client{}
+	res, err := client.Do(request)
+	Err(err,0)
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	Err(err,0)
+	s:=string(body)
+	return s
+}
+
+func CubeDownload(cubeno int) string {
+	decho("Download file")
+	cubenum:=strconv.Itoa(cubeno)
+	//filename:="test"+cubenum
+    fileUrl:="http://"+Configure.Rpcip+"/download/"+cubenum
+    filepath,err := DownloadFile(FilePath(cubeno)+filepathSeparator, fileUrl)
+    if err != nil {
+		decho(err)
+    }
+	return filepath
+}
+
+func DownloadFile(filepath string, url string) (string,error) {
+    resp,err:=http.Get(url)
+    if err != nil {
+        return "",err
+    }
+	filename:=headerFilename(resp)
+	if filename=="untitle.file" {
+		return "",nil	
+	}
+	filepath+=headerFilename(resp)
+    defer resp.Body.Close()
+	out,err:=os.Create(filepath)
+    if err!=nil {
+        return "",err
+    }
+    defer out.Close()
+    _, err=io.Copy(out, resp.Body)
+    return filepath,err
+}
+
+func headerFilename(resp *http.Response) string {
+	filename:="untitle.file"
+	decho(resp)
+
+	if resp.Header["Content-Length"][0]=="0" {
+	} else if resp.Header["Content-Disposition"][0]>"" {
+		filename=resp.Header["Content-Disposition"][0]
+		filename=strings.Replace(filename,"attachment;", "",-1)
+		filename=strings.Replace(filename," ", "",-1)
+		filename=strings.Replace(filename,"filename=", "",-1)
+		filename=strings.Replace(filename,"'", "",-1)
+		//decho(filename)
+	} else {
+	}
+	return filename
+}
+
+
+func decho(v interface{}) {
+	if DebugMode {
+		echo(v)
+	}
 }

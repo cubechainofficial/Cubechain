@@ -7,41 +7,47 @@ import (
 )
 
 type Configuration struct {
-    /* Network/Node */
-	Mainserver string `json:"mainserver"`
+	/* Network/Node */
 	Network string `json:"network"`
-    Nettype string `json:"nettype"`
-    Chaintype string `json:"chaintype"`
+	Nettype string `json:"nettype"`
+	Chaintype string `json:"chaintype"`
 	Host string `json:"host"`
-    Port int `json:"port"`
+	Port int `json:"port"`
 
 	// RPC Port
-    Rpcip string `json:"rpcip"`
-    Rpcport int `json:"rpcport"`
-    Httpport int `json:"httpport"`
-	
+	Rpcip string `json:"rpcip"`
+	Rpcport int `json:"rpcport"`
+	Httpport int `json:"httpport"`
+
 	/* Cube Setting */
 	Datafolder	string `json:"datafolder"`
 	Datanumber	int `json:"datanumber"`
-	
+
 	Blocktime int `json:"blocktime"`
-    Number []int `json:"number"`
-    Pow []int `json:"pow"`
-    Maxnonce int `json:"maxnonce"`
-    Zeronumber int `json:"zeronumber"`
+	Number []int `json:"number"`
+	Pow []int `json:"pow"`
+	Maxnonce int `json:"maxnonce"`
+	Zeronumber int `json:"zeronumber"`
 
 	Indexing int `json:"indexing"`
-    Statistics int `json:"statistics"`
-    Escrow int `json:"escrow"`
-    Format int `json:"format"`
-    Edit int `json:"edit"`
+	Statistics int `json:"statistics"`
+	Escrow int `json:"escrow"`
+	Format int `json:"format"`
+	Edit int `json:"edit"`
 
 	/* Wallet */
-    Address string `json:"address"`
+	Address string `json:"address"`
 	Keylen  int `json:"keylen"`
-	
+
 	/* Password */
 	Password int `json:"password"`
+
+	/* Mining */
+
+	MiningMode string `json:"miningmode"`
+	MainServer string `json:"mainserver"`
+	PoolServer string `json:"poolserver"`
+	PosServer string `json:"posserver"`
 }
 
 func LoadConfiguration(File string) Configuration {
