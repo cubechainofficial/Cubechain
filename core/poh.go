@@ -10,6 +10,7 @@ type Pohr struct {
 	BlockHash	float64
 	CHash		float64
 	Cubing		float64
+	POW			float64
 	POS			float64
 }
 
@@ -47,7 +48,6 @@ func (pm *PoolMining) HashString() {
 func (pm *PoolMining) Result(rcnt int) {
 	bstr:=NodeSend2("pool_result","=0&cubeno="+strconv.Itoa(pm.Cubeno)+"&blockno="+strconv.Itoa(pm.Blockno)+"&hashstr="+pm.HashStr)
 	result:=strings.Split(bstr,"|")
-	echo (bstr)
 	pm.ResultHash=result[0]
 	pm.ResultNonce,_=strconv.Atoi(result[1])
 	if pm.ResultHash>"" && pm.ResultNonce>0 {
@@ -64,10 +64,8 @@ func (pm *PoolMining) Result(rcnt int) {
 		}
 	} else {
 	}
-
 	rcnt++
-	echo (rcnt)
-	if rcnt<14 {
+	if rcnt<11 {
 		time.Sleep(2*time.Second)
 		pm.Result(rcnt)
 	}

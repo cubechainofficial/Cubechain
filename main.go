@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"time"
+	"strings"
+	"strconv"
+	"encoding/gob"
 	 "./config"
 	 "./core"
 )
@@ -10,19 +13,38 @@ import (
 var echo=fmt.Println
 var Configure config.Configuration
 var mstr="miningtesting!!..."
+var	addr="CLQUKEdCeWmPzAmyJdHzo9cTBrq2JCBbPC"
+
 
 func init() {
 	Configure=config.LoadConfiguration("./config/cubechain.conf")
 	core.Configure=Configure
 	core.CubenoSet()
 	echo (core.CubeSetNum)
+	
+	if core.GenFile=="" {
+		path:="./config/genfile"
+		core.GenFile=core.FileReadString(path)
+		line:=strings.Split(core.GenFile,"\r\n")
+		for _,v:=range line {
+			result:=strings.Split(v, "|")
+			genno,ok:=strconv.Atoi(result[0])
+			if ok==nil {
+				core.GenBlock[genno-1]+=v+"\r\n"
+			}
+		}
+	}
+
+	gob.Register(&core.TxData{})
+	gob.Register(&core.TxBST{})
+	gob.Register(map[string]string{})
 }
 
 
 func main() {
-	quickmining()
+	go quickmining2()
+	core.ServerRun()
 }
-
 
 func quickmining() {
 	tickChan:=time.Tick(time.Duration(Configure.Blocktime)*time.Second)
@@ -37,20 +59,29 @@ func quickmining() {
 	echo("Cubechain end!")
 }
 
-
-func working() {
-	var block core.Block
-	block.Cubeno=651
-	block.Blockno=2
-	ph:=block.GetPrevHash()
-	echo (ph)
+func quickmining2() {
+	tickChan:=time.Tick(2*time.Second)
+	tickChan2:=time.Tick(time.Duration(Configure.Blocktime+1)*time.Second)
+	echo("Cubechain start!")
+	startTime:=time.Now()
+    exeTime:=startTime.Add(-time.Duration(Configure.Blocktime)*time.Second)
+    exeTime=exeTime.Add(-5*time.Second)
+    cubeDuration:=time.Duration(Configure.Blocktime) * time.Second
+	for {
+		select {
+		case <-tickChan:
+			if  time.Since(exeTime)>=cubeDuration {
+				exeTime=time.Now()
+				cubemining2()
+			}
+		case <-tickChan2:
+			go core.AllIndexing(0)
+			go core.AllStatistic(0)
+		}
+	}
+	echo("Cubechain end!")
 }
 
-func cubedown() {
-	//var c core.Cube
-	core.CubeDownload(600)
-
-}
 
 func cubemining() { 
 	var c core.Cube
@@ -61,50 +92,28 @@ func cubemining() {
 
 func cubemining2() { 
 	var c core.Cube
-	ch:=core.CubeHeight()+1
-	echo (ch)
-	c.InputChanel(ch)
+	ch:=core.CubeHeight()
+	ch2:=core.GetCubeHeight3()
+	ch3,_:=strconv.Atoi(ch2)
+
+	if ch3>ch {
+		for i:=ch;i<=ch3;i++ {
+			c.Cubeno=i
+			c.CHash=""
+			c.Download()
+		}
+	} else {
+		if ch>3 {
+			c.Cubeno=ch-2
+			c.CHash=""
+			c.Download()
+			
+			c.Cubeno=ch-1
+			c.CHash=""
+			c.Download()
+		}
+
+		echo (ch)
+		c.InputChanel(ch)
+	}
 }
-
-
-func blockmining1() {
-	var b core.Block
-	b.Input(1,10)
-}
-func blockmining2() { 
-	var b core.Block
-	c:=core.CubeHeight()+1
-	echo (c)
-	b.Input(c,10)
-}
-
-
-
-
-func blockscan() {
-	b:=core.BlockScan(3042,3)
-	b.Print()
-}
-
-func testcon() {
-	r:=core.NodeSend2("pool_result","0&cubeno=1&blockno=3&hashstr=293u89u4832u48eaujfhugjnxcjnujdusifu")
-	echo (r)
-}
-
-func pohcheck() {
-	ph:=core.PohSet(1)
-	echo (ph.Cubeno)
-}
-
- 
-func checking() {
-	r:=core.TxPool(7,3)
-	bst,_:=core.TxpoolToBst(r)
-	echo (r)
-	bst.TreePrint2()
-
-	b,_:=core.TxBlockData(7,3)
-	echo (b)
-}
-
-

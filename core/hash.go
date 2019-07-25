@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
-	"strings"
 	"strconv"
 )
 
@@ -43,6 +42,12 @@ func setHash4(str string) string {
 	return hex.EncodeToString(hashed)
 }
 
+func setHash5(str string) string {
+	s:=setHash(str)
+	result:=s[:20]+s[43:]+s[20:43]
+	return result
+}
+
 func PowBlockHashing(pstr string,max int) (string,int) {
 	var str,hash string
 	i:=0
@@ -56,6 +61,21 @@ func PowBlockHashing(pstr string,max int) (string,int) {
 	if i>max { i=max; }
 	return hash,i
 }
+
+func PowSpecialHashing(pstr string,max int) (string,int) {
+	var str,hash string
+	i:=0
+	for i=0;i<=max;i++ {
+		str=pstr+strconv.Itoa(i)
+		hash=setHash5(str)
+		if PHashVerify(hash) {
+			break
+		}
+	}
+	if i>max { i=max; }
+	return hash,i
+}
+
 
 func PowCubeHashing(pstr string,max int) (string,int) {
 	var str,hash string
@@ -73,21 +93,35 @@ func PowCubeHashing(pstr string,max int) (string,int) {
 
 func PHashVerify(hash string) bool {
 	result:=false
-	vhash:=strings.Repeat(hash[:1], Configure.Zeronumber)
-	if hash[:Configure.Zeronumber]==vhash {
+	if len(MineDifficulty)<8 {
+		MineDifficulty=MineDifficultyBase
+	}
+	if hash[:len(MineDifficulty)]<=MineDifficulty {
 		result=true
 	}
 	return result
 }
 
 func PatternHash(str string,cno int) string {
+	result:=""
+	ph:=""
 	switch cno {
-		case 3 : return setHash3(str)
-		case 4 : return setHash3(str)
-		case 5 : return setHash3(str)
-		case 6 : return setHash3(str)
-		default : return setHash3(str)
+		case 3 : 
+			ph=setHash3(str)
+			result=ph[4:27]+ph[:4]+ph[27:]
+		case 4 : 
+			ph=setHash3(str)
+			result=ph[:14]+ph[14:]
+		case 5 : 
+			ph=setHash3(str)
+			result=ph[7:31]+ph[31:]+ph[:7]
+		case 6 : 
+			ph=setHash3(str)
+			result=ph[8:30]+ph[51:]+ph[:8]+ph[30:51]
+		default : 
+			return setHash3(str)
 	}
+	return result
 }
 
 func BlockHash(str string) string {
@@ -103,6 +137,7 @@ func CallHash(str string,hno int) string {
 		case 2 : return setHash2(str)
 		case 3 : return setHash3(str)
 		case 4 : return setHash4(str)
+		case 5 : return setHash5(str)
 		default : return setHash(str)
 	}
 }

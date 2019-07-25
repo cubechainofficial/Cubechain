@@ -62,17 +62,15 @@ func LoadConfiguration(File string) Configuration {
 
 	if Config.Network=="mainnet" {
 		Config.Datanumber=10000
-		Config.Maxnonce=1000000
-		Config.Zeronumber=4
+		Config.Maxnonce=100000000
+		Config.Zeronumber=5
 		Config.Blocktime=30
- 		Config.Number=[]int{1,2000,10000,30000,40000,50000}
- 		Config.Pow=[]int{7,6,5,4,3,2,1}
- 		Config.Indexing=14
- 		Config.Statistics=5
- 		Config.Escrow=23
- 		Config.Format=0
-		Config.Edit=0
-  		Config.Keylen=38
+ 		Config.Indexing=24
+ 		Config.Statistics=25
+ 		Config.Escrow=26
+ 		Config.Format=27
+		Config.Edit=27
+  		Config.Keylen=34
 	} else {
 		if Config.vaildConfiguration()==false {
 	        panic("[Configuration Error] Please confirm configuration file.")

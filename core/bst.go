@@ -32,7 +32,7 @@ func AddBST(v interface{}) *BST {
 
 func (t *BST) Print() {
 	q:=[]depthNode{}
-	q=append(q,depthNode{depth:0,node:t.Root})
+	q=append(q,depthNode{depth:0,node:t.Root,lr:"Root"})
 	currentDepth:=0
 	for len(q)>0 {
 		var first depthNode
@@ -41,7 +41,7 @@ func (t *BST) Print() {
 			fmt.Println()
 			currentDepth=first.depth
 		}
-		fmt.Println("[",first.lr,"] ",first.node.Hash," ",first.node.Val)
+		fmt.Println("[",first.depth," : ",first.lr,"] ",first.node.Hash," ",first.node.Val)
 		if first.node.Left!=nil {
 			q=append(q,depthNode{depth:currentDepth+1,node:first.node.Left,lr:"L"})
 		}
@@ -98,35 +98,63 @@ func (t *BST) Search(h string) (interface{},int) {
 	return t.Root.Search(h, 1)
 }
 
-func (t *BST) Convert(txArr *[]TxData) {
-	//t.Root.Convert(txArr)
+func (t *BST) Convert00(RtxArr *[]TxData) {
+	t.Root.Convert(RtxArr)
 }
 
-func (n *BSTNode) AddNode(v interface{}) *BSTNode {
-	h:=setHashV(v) 
+func (t *BST) Convert(RtxArr *[]TxData) {
+	q:=[]depthNode{}
+	q=append(q,depthNode{depth:0,node:t.Root,lr:"Root"})
+	currentDepth:=0
+	for len(q)>0 {
+		var first depthNode
+		first,q=q[0],q[1:]
+		if first.depth!=currentDepth {
+			currentDepth=first.depth
+		}
+		if t.Root!=first.node {
+			tData,_:=first.node.Val.(*TxData)
+			*RtxArr=append(*RtxArr,*tData)
+		}
+		if first.node.Left!=nil {
+			q=append(q,depthNode{depth:currentDepth+1,node:first.node.Left,lr:"L"})
+		}
+		if first.node.Right!=nil {
+			q=append(q,depthNode{depth:currentDepth+1,node:first.node.Right,lr:"R"})
+		}
+	}
+}
+
+
+func (n *BSTNode) AddNode(v interface{},h string) *BSTNode {
+	if h=="" {
+		h=setHashV(v) 
+	}
 	if n.Hash==h {
-		fmt.Println("Already exists Hash :",h)
+		echo("Already exists Hash :",h," => ",v)
 		return nil
 	} else if n.Hash>h {
 		if n.Left==nil {
 			n.Left=&BSTNode{Hash:h,Val:v}
 			return n.Left
 		} else {
-			return n.Left.AddNode(v)
+			return n.Left.AddNode(v,h)
 		}
 	} else {
 		if n.Right==nil {
 			n.Right=&BSTNode{Hash:h,Val:v}
 			return n.Right
 		} else {
-			return n.Right.AddNode(v)
+			return n.Right.AddNode(v,h)
 		}
 	}
 }
 
-func (n *BSTNode) AddNodeHash(v interface{}) (*BSTNode,string) {
-	h:=setHashV(v) 
-	an:=n.AddNode(v)
+func (n *BSTNode) AddNodeHash(v interface{},h string) (*BSTNode,string) {
+	if h=="" {
+		h=setHashV(v) 
+	}
+	an:=n.AddNode(v,h)
 	if an==nil {
 		return nil,""
 	} else {
@@ -142,34 +170,25 @@ func (n *BSTNode) Search(h string,cnt int) (interface{},int) {
 		if n.Left!=nil {
 			return n.Left.Search(h, cnt+1)
 		}
-		return "",cnt
+		return nil,cnt
 	} else {
 		if n.Right!=nil {
 			return n.Right.Search(h,cnt+1)
 		}
-		return "",cnt
+		return nil,cnt
 	}
 }
 
 func (n *BSTNode) Convert(txArr *[]TxData) {
-
-	
 	if n.Left!=nil {
-		formatString(n.Left.Val)
-	} else if n.Right!=nil {
-		formatString(n.Right.Val)
-	}
-
-
-	/*
-	if n.Left!=nil {
-		*txArr=append(*txArr,n.Left.Val)
+		LeftData,_:=n.Left.Val.(TxData)
+		*txArr=append(*txArr,LeftData)
 		n.Left.Convert(txArr)
 	} else if n.Right!=nil {
-		*txArr=append(*txArr,n.Right.Val)
+		RightData,_:=n.Right.Val.(TxData)
+		*txArr=append(*txArr,RightData)
 		n.Right.Convert(txArr)
 	}
-	*/
 }
 
 func formatString(arg interface{}) string {

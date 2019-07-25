@@ -68,10 +68,8 @@ func GetCubing(cubeno int) Cubing {
 		hash1:=strings.Split(result[1], ",")
 		hash2:=strings.Split(result[2], ",")
 
-
 		gcubing.Cubeno=cubeno
 		gcubing.Timestamp,_=strconv.Atoi(result[0])
-		
 
 		for i:=0;i<27;i++ {
 			hash3[i]=hash1[i]

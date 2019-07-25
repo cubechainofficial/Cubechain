@@ -1,13 +1,15 @@
 package core
 
 import (
-//	"fmt"
-	//"strings"
+	"strings"
 	"sync"
 	"strconv"
 	"time"
-	//"os"
-	//"encoding/gob"
+	"math"
+	"os"
+	"bytes"
+	"net/http"
+	"io/ioutil"
 )
 
 type Cube struct {
@@ -17,7 +19,23 @@ type Cube struct {
 	PrevHash    string
 	CHash       string
 	Nonce       int
+	Mine		CMineResult
 }
+
+type CMineResult struct {
+	MineAddr	string
+	MineMethod	string
+	PowReward	float64
+	PosReward	float64
+	Txamount	float64
+	Sumfee		float64
+	Txcnt		int
+	Tkcnt		int
+	Concnt		int
+	Hashcnt		int
+	Difficulty	string
+}
+
 
 var waitGroup sync.WaitGroup
 
@@ -27,52 +45,97 @@ func (cube *Cube) Input(cubeno int) {
 	cube.Cubeno=cubeno
 	cube.Timestamp=int(time.Now().Unix())
 	var blocks [27]Block
+	MakeDir(cubeno)
+	difficulty()
+
+	cube.Mine.MineAddr=Configure.Address
+	cube.Mine.PowReward=Pratio.POW
+	cube.Mine.PosReward=Pratio.POS
+	if Configure.MiningMode=="pos" {
+		cube.Mine.MineMethod="POS"
+	} else {
+		cube.Mine.MineMethod="POW"
+	}
+	cube.Mine.Difficulty=MineDifficulty
 
 	Sumfee=0.0
 	for i:=0;i<27;i++ {
 		blocks[i].Input(cubeno,i+1)
+		cube.Mine.Txamount+=blocks[i].Mine.Txamount
+		cube.Mine.Sumfee+=blocks[i].Mine.Sumfee
+		cube.Mine.Txcnt+=blocks[i].Mine.Txcnt
+		cube.Mine.Tkcnt+=blocks[i].Mine.Tkcnt
+		cube.Mine.Concnt+=blocks[i].Mine.Concnt
+		cube.Mine.Hashcnt+=blocks[i].Nonce
 	}
+	cube.Mine.PowReward+=cube.Mine.Sumfee
 	cube.Blocks=blocks
 	cube.SetPrevHash()
 	cube.SetHash()
-	cube.PowMining()
+	cube.PosMining()
+	cube.Mine.Hashcnt+=cube.Nonce
 
 	if cube.Nonce>0 {
 		br:=cube.Broadcast()
 		if br {
 			cube.Save()
 			decho ("save cube "+strconv.Itoa(cubeno))
-			cube.MineBroadcast()
+			cube.FileBroadcast()
+			go cube.MineBroadcast()
 		}
 	}
 }
 
 func (cube *Cube) InputChanel(cubeno int) {
 	cube.Cubeno=cubeno
-	cube.Cubeno=cubeno
 	cube.Timestamp=int(time.Now().Unix())
     bno:=make(chan int)
 	var blocks [27]Block
-	waitGroup.Add(27)
+	MakeDir(cubeno)
+	difficulty()
 
 	Sumfee=0.0
 	for i:=0;i<27;i++ {
+		waitGroup.Add(1)
 		go blockInput(cubeno,bno,&blocks[i])
 		bno<-(i+1)
 	}
+	
 	waitGroup.Wait()
+	
+	cube.Mine.MineAddr=Configure.Address
+	cube.Mine.PowReward=Pratio.POW
+	cube.Mine.PosReward=Pratio.POS
+	if Configure.MiningMode=="pos" {
+		cube.Mine.MineMethod="POS"
+	} else {
+		cube.Mine.MineMethod="POW"
+	}
+	cube.Mine.Difficulty=MineDifficulty
+	
+	for i:=0;i<27;i++ {
+		cube.Mine.Txamount+=blocks[i].Mine.Txamount
+		cube.Mine.Sumfee+=blocks[i].Mine.Sumfee
+		cube.Mine.Txcnt+=blocks[i].Mine.Txcnt
+		cube.Mine.Tkcnt+=blocks[i].Mine.Tkcnt
+		cube.Mine.Concnt+=blocks[i].Mine.Concnt
+		cube.Mine.Hashcnt+=blocks[i].Nonce
+	}
+	cube.Mine.PowReward+=cube.Mine.Sumfee
 
 	cube.Blocks=blocks
 	cube.SetPrevHash()
 	cube.SetHash()
 	cube.PowMining()
+	cube.Mine.Hashcnt+=cube.Nonce
 
 	if cube.Nonce>0 {
 		br:=cube.Broadcast()
 		if br {
 			cube.Save()
 			decho ("save cube "+strconv.Itoa(cubeno))
-			cube.MineBroadcast()
+			cube.FileBroadcast()
+			go cube.MineBroadcast()
 		}
 	}
 }
@@ -104,12 +167,76 @@ func (cube *Cube) Save() error {
 	path:=FilePath(cube.Cubeno)
 	err:=FileWrite(path+filepathSeparator+filename,cube)
 	if err==nil {
-		//var cubing Cubing
 		cube.SetCubing(&PrvCubing)
 		CubingFileWrite(PrvCubing)
 	}
 	return err
 }
+
+func (cube *Cube) Downloading() error {
+	path:=FilePath(cube.Cubeno)
+	url:="http://"+Configure.PosServer+"/download/"+strconv.Itoa(cube.Cubeno)
+	_,err:=DownloadFile(path+filepathSeparator,url)
+	if err!=nil {
+		echo (err)
+	}
+	return err
+}
+
+func (cube *Cube) Download() error {
+	path:=FilePath(cube.Cubeno)
+	PathDelete(path)
+	return cube.Downloading()
+}
+
+func (cube *Cube) FileBroadcast() error {
+	filename:=cube.FileName()
+	path:=FilePath(cube.Cubeno)
+	file:=path+filepathSeparator+filename
+
+	extraParams := map[string]string{
+		"cmode": "filebroadcast",
+		"cubeno": strconv.Itoa(cube.Cubeno),
+	}
+	request, err := newfileUploadRequest("http://"+Configure.PosServer+"/filebroadcast", extraParams, "file", file)
+	if err != nil {
+		echo(err)
+	}
+	client := &http.Client{}
+	resp, err := client.Do(request)
+	if err != nil {
+		echo(err)
+	} else {
+		body := &bytes.Buffer{}
+		_, err := body.ReadFrom(resp.Body)
+		if err != nil {
+			echo(err)
+		}
+		resp.Body.Close()
+		decho(resp.StatusCode)
+		decho(resp.Header)
+		echo(body)
+	}
+	return err
+}
+
+func (cube *Cube) FileBroadcast2()  {
+	filename:=cube.FileName()
+	path:=FilePath(cube.Cubeno)
+	file, err := os.Open(path+filepathSeparator+filename)
+	if err != nil {
+		echo(err)
+	}
+	defer file.Close()
+	res, err := http.Post("http://"+Configure.PosServer+"/filebroadcast", "binary/octet-stream", file)
+	if err != nil {
+		echo(err)
+	}
+	defer res.Body.Close()
+	message, _ := ioutil.ReadAll(res.Body)
+	echo(string(message))
+}
+
 
 func (cube *Cube) String() string {
 	bhash:=""
@@ -118,7 +245,7 @@ func (cube *Cube) String() string {
 		bhash+=cube.Blocks[i].Hash+","
 		phash+=cube.Blocks[i].PatternHash+","
 	}
-	toStr:=strconv.Itoa(cube.Cubeno)+CubeDelim+strconv.Itoa(cube.Timestamp)+CubeDelim+bhash+CubeDelim+phash+CubeDelim+cube.PrevHash+CubeDelim+cube.CHash+CubeDelim+strconv.Itoa(cube.Nonce)
+	toStr:=strconv.Itoa(cube.Cubeno)+CubeDelim+strconv.Itoa(cube.Timestamp)+CubeDelim+bhash+CubeDelim+phash+CubeDelim+cube.PrevHash+CubeDelim+cube.CHash+CubeDelim+strconv.Itoa(cube.Nonce)+CubeDelim+cube.Mine.MineAddr
 	return toStr
 }
 
@@ -145,11 +272,34 @@ func (cube *Cube) HashString() string {
 	return toStr
 }
 
+func (cube *Cube) CubeString() string {
+	toStr:=strconv.Itoa(cube.Cubeno)+BlockDelim+strconv.Itoa(cube.Timestamp)+BlockDelim+cube.PrevHash+BlockDelim+cube.CHash+BlockDelim+strconv.Itoa(cube.Nonce)
+	toStr+=BlockDelim+cube.Mine.MineAddr+BlockDelim+cube.Mine.MineMethod+BlockDelim+strconv.FormatFloat(cube.Mine.PowReward,'f',-1,64)+BlockDelim+strconv.FormatFloat(cube.Mine.PosReward,'f',-1,64)
+	toStr+=BlockDelim+strconv.FormatFloat(cube.Mine.Txamount,'f',-1,64)+BlockDelim+strconv.FormatFloat(cube.Mine.Sumfee,'f',-1,64)
+	toStr+=BlockDelim+strconv.Itoa(cube.Mine.Txcnt)+BlockDelim+strconv.Itoa(cube.Mine.Tkcnt)+BlockDelim+strconv.Itoa(cube.Mine.Concnt)+BlockDelim+strconv.Itoa(cube.Mine.Hashcnt)
+	toStr+=BlockDelim+cube.Mine.Difficulty+BlockDelim+strconv.FormatInt(cube.FileSize(),10)
+	return toStr
+}
+
 func (cube *Cube) SetPrevHash() {
 	cube.PrevHash=cube.GetPrevHash()
 }
 
 func (cube *Cube) GetPrevHash() string {
+	hashnip:=NodeCube("cubehash","0&cubeno="+strconv.Itoa(cube.Cubeno-1))
+	if hashnip=="0,0" || hashnip=="" {
+		return cube.GetPrevHash0();
+	} else {
+		cf:=CubeFileName(cube.Cubeno-1)
+		haship:=strings.Split(hashnip, ",")
+		if cf==strconv.Itoa(cube.Cubeno-1)+"_"+haship[0]+".cub" {
+		} else if haship[1]>"0" {
+		}
+		return haship[0]
+	}
+}	
+
+func (cube *Cube) GetPrevHash0() string {
 	if cube.Cubeno<2 {
 		return CubingHash("GenesisCubehash")
 	} else if PrvCubing.Cubeno==cube.Cubeno-1 && PrvCubing.CHash>"" {
@@ -188,6 +338,7 @@ func (cube *Cube) GetHash() string {
 	return result
 }
 
+
 func (cube *Cube) Mining() {
 	phs:=PohSet(cube.Cubeno)
 	phs.Cubeno=cube.Cubeno
@@ -204,6 +355,13 @@ func (cube *Cube) PowMining() {
 	max:=10000
 	cube.CHash,cube.Nonce=PowCubeHashing(cube.CHash,max)
 }
+
+func (cube *Cube) PosMining() {
+	max:=100
+	cube.CHash,cube.Nonce=PowCubeHashing(cube.CHash,max)
+	cube.CHash="F"+cube.CHash[1:len(cube.CHash)]
+}
+
 
 func (cube *Cube) Verify() bool {
 	if cube.PrevHash!=cube.GetPrevHash() {
@@ -246,16 +404,18 @@ func (cube *Cube) Balance(addr string) float64 {
 	for i:=0;i<27;i++ {
 		if i==Configure.Indexing || i==Configure.Statistics || i==Configure.Escrow || i==Configure.Format || i==Configure.Edit {
 		} else {
-			var TxArr []TxData
-			iData:=TreeDeserialize(cube.Blocks[i].Data)
-			iData.Coin.Convert(&TxArr);
-			iData.Poh.Convert(&TxArr);
-			for _,v:=range TxArr {
-				if v.From==addr {
-					amount+=v.Amount*(-1)
-				}
-				if v.To==addr {
-					amount+=v.Amount
+			iData:=BlockTxData(cube.Blocks[i].Data)
+
+			for _,v:=range iData {
+				if v.Datatype=="QUB" {
+					if v.From==addr {
+						amount=amount-v.Amount-v.Fee-v.Tax
+						amount=math.Round(amount*100000000)/100000000
+					}
+					if v.To==addr {
+						amount+=v.Amount+v.Tax
+						amount=math.Round(amount*100000000)/100000000
+					}
 				}
 			}
 		}
@@ -325,7 +485,4 @@ func (cube *Cube) FileInfo() {
 	echo ("FilePath=",cube.FilePath())
 	echo ("FileSize=",cube.FileSize())
 }
-
-
-
 

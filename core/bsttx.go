@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"log"
 	"bytes"
 	"encoding/gob"
 )
@@ -28,9 +27,6 @@ type txData struct {
 }
 type txContract struct {
 }
-
-//var txbst int
-//var txbst TxBST
 
 func (td *txCoin) txDefine() {}
 func (td *txPoh) txDefine() {}
@@ -68,12 +64,26 @@ func (td *txContract) BstNode(txb TxBST) {
 	return
 }
 
+func (txbst *TxBST) Init() {
+	if txbst.Coin==nil || txbst.Poh==nil || txbst.Token==nil || txbst.Data==nil || txbst.Contract==nil {
+		txbst.Coin=AddBST("Coin")
+		txbst.Poh=AddBST("Poh")
+		txbst.Token=AddBST("Token")
+		txbst.Data=AddBST("Data")
+		txbst.Contract=AddBST("Contract")
+	}
+}
+
 func (txbst *TxBST) treeInsert(treeData interface{},treeType string) {
 	txbst.treeInsertNode(treeData,treeType)
 }
 
 
 func (txbst *TxBST) treeInsertNode(treeData interface{},treeType string) *BSTNode {
+	hash:=""
+	if treeType!="Data" &&  treeType!="Contract" {
+		hash=treeData.(TxData).Hash
+	}
 	n:=&BSTNode{}
 	if txbst.Coin==nil || txbst.Poh==nil || txbst.Token==nil || txbst.Data==nil || txbst.Contract==nil {
 		txbst.Coin=AddBST("Coin")
@@ -83,17 +93,21 @@ func (txbst *TxBST) treeInsertNode(treeData interface{},treeType string) *BSTNod
 		txbst.Contract=AddBST("Contract")
 	}
 	switch treeType {
-		case "Coin": n=txbst.Coin.Root.AddNode(treeData)
-		case "Poh": n=txbst.Poh.Root.AddNode(treeData)
-		case "Token": n=txbst.Token.Root.AddNode(treeData)
-		case "Data": n=txbst.Data.Root.AddNode(treeData)
-		case "Contract": n=txbst.Contract.Root.AddNode(treeData)
+		case "Coin": n=txbst.Coin.Root.AddNode(treeData,hash)
+		case "Poh": n=txbst.Poh.Root.AddNode(treeData,hash)
+		case "Token": n=txbst.Token.Root.AddNode(treeData,hash)
+		case "Data": n=txbst.Data.Root.AddNode(treeData,hash)
+		case "Contract": n=txbst.Contract.Root.AddNode(treeData,hash)
 		default : fmt.Println("Please check tx type.")
 	}
 	return n
 }
 
 func (txbst *TxBST) treeInsertHash(treeData interface{},treeType string) string {
+	hash:=""
+	if treeType!="Data" &&  treeType!="Contract" {
+		hash=treeData.(TxData).Hash
+	}
 	h:=""
 	if txbst.Coin==nil || txbst.Poh==nil || txbst.Token==nil || txbst.Data==nil || txbst.Contract==nil {
 		txbst.Coin=AddBST("Coin")
@@ -103,22 +117,19 @@ func (txbst *TxBST) treeInsertHash(treeData interface{},treeType string) string 
 		txbst.Contract=AddBST("Contract")
 	}
 	switch treeType {
-		case "Coin": _,h=txbst.Coin.Root.AddNodeHash(treeData)
-		case "Poh": _,h=txbst.Poh.Root.AddNodeHash(treeData)
-		case "Token": _,h=txbst.Token.Root.AddNodeHash(treeData)
-		case "Data": _,h=txbst.Data.Root.AddNodeHash(treeData)
-		case "Contract": _,h=txbst.Contract.Root.AddNodeHash(treeData)
+		case "Coin": _,h=txbst.Coin.Root.AddNodeHash(treeData,hash)
+		case "Poh": _,h=txbst.Poh.Root.AddNodeHash(treeData,hash)
+		case "Token": _,h=txbst.Token.Root.AddNodeHash(treeData,hash)
+		case "Data": _,h=txbst.Data.Root.AddNodeHash(treeData,hash)
+		case "Contract": _,h=txbst.Contract.Root.AddNodeHash(treeData,hash)
 		default : fmt.Println("Please check tx type.")
 	}
 	return h
 }
 
-
-
 func BlockTree(BlockData []byte) TxBST{
 	var tbst TxBST
 	tbst=TreeDeserialize(BlockData)
-	//echo (tbst)
 	return tbst
 }
 
@@ -134,6 +145,40 @@ func BlockBST(BlockData []byte,treeType string) BST {
 		default : fmt.Println("Please check tx type.")
 	}
 	return result
+}
+
+func TreeToData(tbst TxBST) []TxData {
+	var txbData []TxData
+	if tbst.Poh!=nil {
+		tbst.Poh.Convert(&txbData)
+	}
+	if tbst.Coin!=nil {
+		tbst.Coin.Convert(&txbData)
+	}
+	if tbst.Token!=nil {
+		tbst.Token.Convert(&txbData)
+	}
+	return txbData
+}
+
+func TreeToSpecial(tbst TxBST) map[string]string {
+	var spData map[string]string
+	if tbst.Data!=nil {
+		spData,_=tbst.Data.Root.Val.(map[string]string)
+	}
+	return spData
+}
+
+func BlockTxData(BlockData []byte) []TxData{
+	var tbst TxBST
+	tbst=TreeDeserialize(BlockData)
+	return TreeToData(tbst)
+}
+
+func BlockSpecialData(BlockData []byte) map[string]string{
+	var tbst TxBST
+	tbst=TreeDeserialize(BlockData)
+	return TreeToSpecial(tbst)
 }
 
 func BlockTreeRoot(BlockData []byte,treeType string) BSTNode {
@@ -156,17 +201,13 @@ func (tb *TxBST) Insert(treeData interface{}) {
 
 func TreeDeserialize(data []byte) TxBST {
 	var object TxBST
-	var Tdata TxData
-	gob.Register(Tdata)
 	decoder:=gob.NewDecoder(bytes.NewReader(data))
 	err:=decoder.Decode(&object)
 	if err != nil {
-		log.Panic(err)
+		decho(err)
 	}
 	return object
 }
-
-
 
 func TreePrint() {
 	var txb TxBST
@@ -194,8 +235,6 @@ func TreePrint() {
 
 	decho(str)
 	decho(c)
-
-
 }
 
 func (txbst TxBST) TreePrint2() {

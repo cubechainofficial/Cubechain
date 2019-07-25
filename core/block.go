@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/hex"
 	"strconv"
+	"strings"
 	"time"
 	"../config"
 )
@@ -25,6 +26,7 @@ type MineResult struct {
 	Txamount	float64
 	Txcnt		int
 	Tkcnt		int
+	Concnt		int
 	Sumfee		float64
 }
 
@@ -48,7 +50,7 @@ func (block *Block) Input(cubeno int,blockno int) {
 	block.Nonce=0
 	tbst,block.Mine=TxBlock(cubeno,blockno)
 	block.Data=GetBytes(tbst)
-	block.Merkle=setHash(strconv.Itoa(cubeno)+tbst.Coin.Merkle())
+	block.Merkle=setHash(tbst.Coin.Merkle())
 	block.SetPrevHash()
 	block.SetPatternHash()
 	block.SetHash()
@@ -59,12 +61,14 @@ func (block *Block) Input(cubeno int,blockno int) {
 	block.Mining()
 	decho ("Mining end "+ci)
 	if block.Nonce>0 {
+
 		br:=block.Broadcast()
-		if br {
-			block.Save()
-			decho ("save block "+ci)
-			block.MineBroadcast()
+		if br==false {
 		}
+
+		block.Save()
+		decho ("save block "+ci)
+		block.MineBroadcast()
 	}
 	decho (block)
 }
@@ -95,22 +99,49 @@ func (block *Block) Read() error {
 }
 
 func (block *Block) HashString() string {
-	txd:=hex.EncodeToString(block.Data)
-	toStr:=strconv.Itoa(block.Cubeno)+BlockDelim+strconv.Itoa(block.Blockno)+BlockDelim+strconv.Itoa(block.Timestamp)+BlockDelim+txd+BlockDelim+block.Merkle+BlockDelim+block.PrevHash+BlockDelim+block.PatternHash+BlockDelim+strconv.Itoa(block.Nonce)
+	txd:=hex.EncodeToString(StrToByte(block.BlockTxString()))
+	toStr:=strconv.Itoa(block.Cubeno)+BlockDelim+strconv.Itoa(block.Blockno)+BlockDelim+strconv.Itoa(block.Timestamp)+BlockDelim+txd+BlockDelim+block.Merkle+BlockDelim+block.PrevHash+BlockDelim+block.PatternHash
 	return toStr
 }
 
 func (block *Block) String() string {
-	txd:=hex.EncodeToString(block.Data)
+	txd:=hex.EncodeToString(StrToByte(block.BlockTxString()))
 	toStr:=strconv.Itoa(block.Cubeno)+BlockDelim+strconv.Itoa(block.Blockno)+BlockDelim+strconv.Itoa(block.Timestamp)+BlockDelim+txd+BlockDelim+block.Merkle+BlockDelim+block.Hash+BlockDelim+block.PrevHash+BlockDelim+block.PatternHash+BlockDelim+strconv.Itoa(block.Nonce)
 	return toStr
 }
 
 func (block *Block) MineString() string {
-	txd:=hex.EncodeToString(block.Data)
+	txd:=hex.EncodeToString(StrToByte(block.BlockTxString()))
+	txd=setHash(txd)
 	toStr:=strconv.Itoa(block.Cubeno)+BlockDelim+strconv.Itoa(block.Blockno)+BlockDelim+strconv.Itoa(block.Timestamp)+BlockDelim+txd+BlockDelim+block.Merkle+BlockDelim+block.Hash+BlockDelim+block.PrevHash+BlockDelim+block.PatternHash+BlockDelim+strconv.Itoa(block.Nonce)
 	toStr+=BlockDelim+block.Mine.TxMine+BlockDelim+strconv.FormatFloat(block.Mine.Txamount,'f',-1,64)+BlockDelim+strconv.Itoa(block.Mine.Txcnt)+BlockDelim+strconv.Itoa(block.Mine.Tkcnt)+BlockDelim+strconv.FormatFloat(block.Mine.Sumfee,'f',-1,64)
 	toStr+=BlockDelim+strconv.FormatFloat(Pratio.BlockHash+block.Mine.Sumfee,'f',-1,64)+BlockDelim+Configure.Address+BlockDelim+strconv.FormatInt(block.FileSize(),10)
+	return toStr
+}
+
+func (block *Block) MineDataString() string {
+	txd:=hex.EncodeToString(StrToByte(block.BlockTxString()))
+	toStr:=strconv.Itoa(block.Cubeno)+BlockDelim+strconv.Itoa(block.Blockno)+BlockDelim+strconv.Itoa(block.Timestamp)+BlockDelim+txd+BlockDelim+block.Merkle+BlockDelim+block.Hash+BlockDelim+block.PrevHash+BlockDelim+block.PatternHash+BlockDelim+strconv.Itoa(block.Nonce)
+	toStr+=BlockDelim+block.Mine.TxMine+BlockDelim+strconv.FormatFloat(block.Mine.Txamount,'f',-1,64)+BlockDelim+strconv.Itoa(block.Mine.Txcnt)+BlockDelim+strconv.Itoa(block.Mine.Tkcnt)+BlockDelim+strconv.FormatFloat(block.Mine.Sumfee,'f',-1,64)
+	toStr+=BlockDelim+strconv.FormatFloat(Pratio.BlockHash+block.Mine.Sumfee,'f',-1,64)+BlockDelim+Configure.Address+BlockDelim+strconv.FormatInt(block.FileSize(),10)
+	return toStr
+}
+
+func (block *Block) BlockString() string {
+	txd:=hex.EncodeToString(block.Data)
+	txd=setHash(txd)
+	toStr:=strconv.Itoa(block.Cubeno)+BlockDelim+strconv.Itoa(block.Blockno)+BlockDelim+strconv.Itoa(block.Timestamp)+BlockDelim+txd+BlockDelim+block.Merkle+BlockDelim+block.Hash+BlockDelim+block.PrevHash+BlockDelim+block.PatternHash+BlockDelim+strconv.Itoa(block.Nonce)
+	toStr+=BlockDelim+strconv.FormatFloat(block.Mine.Txamount,'f',-1,64)+BlockDelim+strconv.Itoa(block.Mine.Txcnt)+BlockDelim+strconv.Itoa(block.Mine.Tkcnt)+BlockDelim+strconv.Itoa(block.Mine.Concnt)+BlockDelim+strconv.FormatFloat(block.Mine.Sumfee,'f',-1,64)
+	toStr+=BlockDelim+strconv.FormatInt(block.FileSize(),10)
+	return toStr
+}
+
+func (block *Block) BlockTxString() string {
+	iData:=BlockTxData(block.Data)
+	toStr:=""
+	for _,v := range iData {
+		toStr=v.String()+"%%%"
+	}
 	return toStr
 }
 
@@ -119,6 +150,26 @@ func (block *Block) SetPrevHash() {
 }
 
 func (block *Block) GetPrevHash() string {
+	hashnip:=NodeSend("blockhash","0&cubeno="+strconv.Itoa(block.Cubeno-1)+"&blockno="+strconv.Itoa(block.Blockno))
+	if hashnip=="0,0" || hashnip=="" {
+		return block.GetPrevHash0();
+	} else {
+		haship:=strings.Split(hashnip, ",")
+		return haship[0]
+	}
+}
+
+func GetPattenHash(cubeno int,blockno int) string {
+	hashnip:=NodeSend("blockphash","0&cubeno="+strconv.Itoa(cubeno-1)+"&blockno="+strconv.Itoa(blockno))
+	if hashnip=="0,0" || hashnip=="" {
+		return GetPattenHash0(cubeno,blockno);
+	} else {
+		haship:=strings.Split(hashnip, ",")
+		return haship[0]
+	}
+}
+
+func (block *Block) GetPrevHash0() string {
 	if block.Cubeno<2 {
 		return setHash("GenesisBlockhash"+strconv.Itoa(block.Blockno))
 	} else if PrvCubing.Cubeno==block.Cubeno-1 && PrvCubing.Hash1[block.Blockno-1]>"" {
@@ -148,7 +199,9 @@ func (block *Block) GetPrevHash() string {
 	return PrvCubing.Hash1[block.Blockno-1]
 }
 
-func GetPattenHash(cubeno int,blockno int) string {
+
+
+func GetPattenHash0(cubeno int,blockno int) string {
 	if cubeno<2 {
 		return setHash("GenesisPattenhash"+strconv.Itoa(blockno))
 	} else if PrvCubing.Cubeno==cubeno {
@@ -205,6 +258,8 @@ func (block *Block) GetHash() string {
 func (block *Block) Mining() {
 	if Configure.MiningMode=="miningpool" {
 		block.PoolMining()
+	} else if Configure.MiningMode=="pos" {
+		block.PosMining()
 	} else {
 		block.PowMining()
 	}
@@ -224,7 +279,17 @@ func (block *Block) PoolMining() {
 
 func (block *Block) PowMining() {
 	max:=Configure.Maxnonce
-	block.Hash,block.Nonce=PowBlockHashing(block.Hash,max)
+	if block.Blockno==Configure.Indexing+1 || block.Blockno==Configure.Statistics+1 || block.Blockno==Configure.Escrow+1 || block.Blockno==Configure.Format+1 || block.Blockno==Configure.Edit+1 {
+		block.Hash,block.Nonce=PowSpecialHashing(block.Hash,max)
+	} else {
+		block.Hash,block.Nonce=PowBlockHashing(block.Hash,max)
+	}
+}
+
+func (block *Block) PosMining() {
+	block.Nonce=((block.Cubeno*block.Blockno)*2+(block.Cubeno+block.Blockno)*3+block.Timestamp*4+5)%1000000000
+	bh:=BlockHash(block.Hash+strconv.Itoa(block.Nonce))
+	block.Hash="F"+bh[1:len(bh)]
 }
 
 func (block *Block) Verify() bool {
@@ -249,7 +314,6 @@ func (block *Block) Broadcast() bool {
 	return result
 }
 
-
 func (block *Block) MineBroadcast() bool {
 	result:=false
 	r:=NodeSend("blocksave",block.MineString())
@@ -260,9 +324,13 @@ func (block *Block) MineBroadcast() bool {
 	return result
 }
 
-
 func (block *Block) FileName() string {
-	filename:=strconv.Itoa(block.Cubeno) + "_" + strconv.Itoa(block.Blockno) + "_" + block.Hash + ".blk"
+	filename:=""
+	if block.Hash=="" {
+		filename=BlockName(block.Cubeno,block.Blockno)
+	} else {
+		filename=strconv.Itoa(block.Cubeno) + "_" + strconv.Itoa(block.Blockno) + "_" + block.Hash + ".blk"
+	}
 	return filename	
 }
 

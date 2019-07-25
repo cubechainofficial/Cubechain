@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+    "io/ioutil"
 )
 
 func FilePath(idx int) string {
@@ -25,11 +26,22 @@ func FilePath(idx int) string {
 	nstr:=fmt.Sprintf("%0.5x",divn)
 	mstr:=fmt.Sprintf("%0."+strconv.Itoa(mcnt)+"x",divm)
 	dirname:=Configure.Datafolder+filepathSeparator+nstr+filepathSeparator+mstr
+	
+	return dirname
+}
+
+func MakeDir(idx int) string {
+	dirname:=FilePath(idx)
+	result:=MakePath(dirname)
+	return result
+}
+
+func MakePath(dirname string) string {
 	if DirExist(dirname)==false {
 		if err:=os.MkdirAll(dirname, os.FileMode(0755)); err!=nil {
-			return "Directory not found.\\1\\1"
+			return "Directory cannot create."
 		}	
-	}	
+	}
 	return dirname
 }
 
@@ -44,15 +56,9 @@ func FileWrite(path string, object interface{}) error {
 }
 
 func FileRead(path string, object interface{}) error {
-	/*
-	var block Block
-	var cube Cube
-	var cubing Cubing
-	
-	gob.Register(block)  
-	gob.Register(cube)
-	gob.Register(cubing)  
-	*/
+	if DirExist(path)==false {
+		return nil
+	}
 
 	file,err:=os.Open(path)
 	if err==nil {
@@ -63,7 +69,19 @@ func FileRead(path string, object interface{}) error {
 	return err
 }
 
+func FileReadString(path string) string {
+    data, err := ioutil.ReadFile(path)
+    if err!=nil {
+		echo (err)
+    }
+	return ByteToStr(data)
+}
+
+
 func FileSize(dirpath string) int64 {
+	if DirExist(dirpath)==false {
+		return 0.0
+	}
 	file, err := os.Open(dirpath) 
 	if err != nil {
 		echo (err)
@@ -72,11 +90,16 @@ func FileSize(dirpath string) int64 {
 	if err != nil {
 		echo (err)
 	}
+	file.Close()
 	return fi.Size()
 }
 
 func FileSearch(dirname string,find string) string{
     result:=""
+	if DirExist(dirname)==false {
+		return ""
+	}
+
 	d,err:=os.Open(dirname)
     if err != nil {
         fmt.Println(err)
@@ -127,7 +150,7 @@ func MaxFind(dirpath string) string {
     for _, fi:=range fi {
         if fi.Mode().IsRegular() {
         } else {
-  			if fi.Name()>find {
+  			if fi.Name()!="special" && fi.Name()>find {
 				find=fi.Name()
 			}
 		}
