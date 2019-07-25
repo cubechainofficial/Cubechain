@@ -7,15 +7,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sort"
-    "bytes"
+   	"bytes"
 	"net"
 	"net/http"
 	"io"
 	"io/ioutil"
     "path/filepath"
 	"mime/multipart"
-
+   	"path/filepath"
 	"../config"
 )
 
@@ -333,7 +332,6 @@ func CubeFileName(idx int) string {
 	return result
 }
 
-
 func CubePath(idx int) string {
 	find:=".cub"	
     dirname:=FilePath(idx)
@@ -403,7 +401,6 @@ func newfileUploadRequest(uri string, params map[string]string, paramName, path 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	return req, err
 }
-
 
 func NodeSend(cmode string,data string) string {
 	arr:=IpCheck()

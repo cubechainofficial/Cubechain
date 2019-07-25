@@ -117,3 +117,4 @@ func cubemining2() {
 		c.InputChanel(ch)
 	}
 }
+
